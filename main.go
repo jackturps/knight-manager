@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"knightmanager/names"
+	"math"
 	"math/rand"
 	"os"
 	"strings"
@@ -14,6 +15,7 @@ var MaxMight = 5
 
 type House struct {
 	Name string
+	Banner string
 	/**
 	 * Make these values getters so they can be derived from other systems in the future
 	 * if necessary.
@@ -22,16 +24,64 @@ type House struct {
 	Knights []*Knight
 }
 
+type BattleResult = int
+
+const (
+	Victory BattleResult = iota
+	Defeat
+)
+
 type Knight struct {
 	Name string
 
 	Prowess int
 
+	// TODO: Use this to decide how likely they are to die in defeat and how
+	// much glory they get in success.
 	// This would be in quotes if it could be, mostly represents brashness.
-	Bravery int
+	//Bravery int
+
+	BattleResults []BattleResult
 
 	House   *House
 	Sponsor *GloryBishop
+}
+
+func NewKnight(name string, prowess int, house *House, sponsor *GloryBishop) *Knight {
+	knight := &Knight{
+		Name:          name,
+		Prowess:       prowess,
+		BattleResults: make([]BattleResult, 0),
+		House:         house,
+		Sponsor:       sponsor,
+	}
+	if house != nil {
+		AssignKnightToHouse(knight, house)
+	}
+	return knight
+}
+
+func (knight *Knight) GetCost() int {
+	underlyingValue := knight.Prowess * knight.House.Might
+	memoryLength := int(math.Min(5, float64(len(knight.BattleResults))))
+	if memoryLength == 0 {
+		return underlyingValue
+	}
+
+	numRecentVictories := 0
+	for idx := 0; idx < memoryLength; idx++ {
+		battleIdx := len(knight.BattleResults) - (idx + 1)
+		battleResult := knight.BattleResults[battleIdx]
+		if battleResult == Victory {
+			numRecentVictories++
+		}
+	}
+	/**
+	 * If a knight won all of their recent battles recentOpinion will be 2. If they won
+	 * 0 it will be 0.5. If they won half it will 1.
+	 */
+	recentOpinion := float64(numRecentVictories * 2) / float64(memoryLength)
+	return int(float64(underlyingValue) * recentOpinion)
 }
 
 // GloryBishop is a member of the church who sponsors knights for glory.
@@ -50,12 +100,16 @@ type GameState struct {
 }
 
 func RemoveItem[V comparable](list []V, item V) []V {
+	// Copy to prevent in place modification of input slice. Turns out append modifies!
+	listCopy := make([]V, len(list))
+	copy(listCopy, list)
+
 	for idx, other := range list {
 		if other == item {
-			return append(list[:idx], list[idx+1:]...)
+			return append(listCopy[:idx], listCopy[idx+1:]...)
 		}
 	}
-	return list
+	return listCopy
 }
 
 func RandomSelect[V any] (values []V) V {
@@ -91,6 +145,7 @@ func GenerateWorld() ([]*House, []*Knight) {
 	for idx := 0; idx < numHouses; idx++ {
 		house := &House{
 			Name: nameGenerator.GenerateName(),
+			Banner: GenerateBanner(),
 			Might: RandomRange(1, MaxMight + 1),
 		}
 		houses = append(houses, house)
@@ -98,18 +153,54 @@ func GenerateWorld() ([]*House, []*Knight) {
 
 	knights := make([]*Knight, 0, numKnights)
 	for idx := 0; idx < numKnights; idx++ {
-		knight := &Knight{
-			Name: nameGenerator.GenerateName(),
-			Prowess: RandomRange(1, 5),
-			Bravery: RandomRange(1, 5),
-		}
-
-		assignedHouse := RandomSelect(houses)
-		AssignKnightToHouse(knight, assignedHouse)
+		knight := NewKnight(
+			nameGenerator.GenerateName(),
+			RandomRange(1, 5),
+			RandomSelect(houses),
+			nil,
+		)
+		// TODO: Should go in knight constructor?
 		knights = append(knights, knight)
 	}
 
 	return houses, knights
+}
+
+func GenerateBanner() string {
+	// TODO: Move these to input files or something.
+	symbols := []string{
+		"stag", "wolf", "crab", "crow", "lion", "elephant", "snake", "cross", "heart", "arrow", "ship", "rose", "sword",
+		"hanged man", "wheel", "octopus", "horse", "star", "fist", "sunrise", "star", "crescent moon", "beaver",
+		"sparrow", "eagle", "chain", "spear", "shield", "apple", "raindrop", "cloud", "lightning bolt", "crystal",
+	}
+	colours := []string {
+		"crimson", "aqua", "light grey", "dark grey", "black", "white", "pink", "golden", "yellow", "blue", "red",
+		"purple", "turquoise", "amber", "violet", "orange", "navy", "magenta", "silver", "copper", "teal", "green",
+	}
+	adjectives := []string {
+		"flaming", "submerged", "bloody", "crowned", "upside down", "striped", "spotted", "mirrored",
+	}
+
+	// TODO: This could be made simpler with a tracery grammar.
+	// Combine parts of banner.
+	symbol := RandomSelect(symbols)
+	colour := RandomSelect(colours)
+	shouldUseAdjective := RandomRange(0, 5) == 0
+	var banner string
+	if shouldUseAdjective {
+		adjective := RandomSelect(adjectives)
+		banner = fmt.Sprintf("%s %s %s", adjective, colour, symbol)
+	} else {
+		banner = fmt.Sprintf("%s %s", colour, symbol)
+	}
+
+	startsWithVowel := strings.Contains("aeiou", banner[0:1])
+	if startsWithVowel {
+		banner = fmt.Sprintf("an %s", banner)
+	} else {
+		banner = fmt.Sprintf("a %s", banner)
+	}
+	return banner
 }
 
 // Given a certain rating randomly determine the number of success. Effectively
@@ -166,6 +257,8 @@ func RunBattle(houses []*House) {
 	// Award more glory to underdogs and less to bullies.
 	glory := (MaxMight + 1) + (loser.Might - winner.Might)
 	for _, knight := range winner.Knights {
+		knight.BattleResults = append(knight.BattleResults, Victory)
+
 		fmt.Printf(
 			"Ser %s was awarded %d glory for their deeds in battle!\n", knight.Name, glory)
 		if knight.Sponsor != nil {
@@ -178,6 +271,8 @@ func RunBattle(houses []*House) {
 	// Copy the slice as we may remove items from the primary slice so we can't iterate it.
 	loserKnights := loser.Knights
 	for _, knight := range loserKnights {
+		knight.BattleResults = append(knight.BattleResults, Defeat)
+
 		survivalHits := RollHits(knight.Prowess)
 		if survivalHits < lossSeverity {
 			fmt.Printf(
@@ -191,28 +286,19 @@ func RunBattle(houses []*House) {
 	fmt.Printf("\n")
 }
 
-var gameState *GameState
-
-func main() {
-	rand.Seed(time.Now().UnixNano())
-
-	gameState = &GameState{}
-	gameState.Houses, gameState.Knights = GenerateWorld()
+func DisplayState() {
 	for _, house := range gameState.Houses {
-		fmt.Printf("Introducing the knights of House %s! [might: %d]\n", house.Name, house.Might)
+		fmt.Printf("Introducing the knights of House %s[might: %d]! Their banner is %s.\n", house.Name, house.Might, house.Banner)
 		for _, knight := range house.Knights {
 
-			fmt.Printf("Ser %s of House %s! [prowess: %d]\n", knight.Name, knight.House.Name, knight.Prowess)
+			fmt.Printf("Ser %s of House %s! [prowess: %d, cost: %d]\n", knight.Name, knight.House.Name, knight.Prowess, knight.GetCost())
 		}
 		fmt.Printf("\n")
 	}
 	fmt.Printf("\n===================\n\n")
+}
 
-	gameState.Player = &GloryBishop{
-		Coin: 5,
-		Glory: 0,
-	}
-
+func DoPlayerTurn() {
 	// Player interaction loop.
 	reader := bufio.NewReader(os.Stdin)
 	for {
@@ -241,7 +327,7 @@ func main() {
 				fmt.Printf("Ser %s is already sponsored\n", foundKnight.Name)
 			}
 
-			gameState.Player.Coin--
+			gameState.Player.Coin -= foundKnight.GetCost()
 			SponsorKnight(gameState.Player, foundKnight)
 			fmt.Printf(
 				"You have sponsored Ser %s of House %s, %d coin remaining\n",
@@ -249,9 +335,27 @@ func main() {
 			)
 		}
 	}
+}
 
-	numBattles := 10
-	for idx := 0; idx < numBattles; idx++ {
-		RunBattle(gameState.Houses)
+var gameState *GameState
+
+func main() {
+	rand.Seed(time.Now().UnixNano())
+
+	gameState = &GameState{}
+	gameState.Houses, gameState.Knights = GenerateWorld()
+
+	gameState.Player = &GloryBishop{
+		Coin: 50,
+		Glory: 0,
+	}
+
+	for {
+		DisplayState()
+		DoPlayerTurn()
+		numBattles := 3
+		for idx := 0; idx < numBattles; idx++ {
+			RunBattle(gameState.Houses)
+		}
 	}
 }
