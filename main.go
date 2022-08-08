@@ -35,11 +35,8 @@ type Knight struct {
 	Name string
 
 	Prowess int
-
-	// TODO: Use this to decide how likely they are to die in defeat and how
-	// much glory they get in success.
-	// This would be in quotes if it could be, mostly represents brashness.
-	//Bravery int
+	// TODO: Maybe rename to brashness?
+	Bravery int
 
 	BattleResults []BattleResult
 
@@ -47,10 +44,11 @@ type Knight struct {
 	Sponsor *GloryBishop
 }
 
-func NewKnight(name string, prowess int, house *House, sponsor *GloryBishop) *Knight {
+func NewKnight(name string, prowess int, bravery int, house *House, sponsor *GloryBishop) *Knight {
 	knight := &Knight{
 		Name:          name,
 		Prowess:       prowess,
+		Bravery:	   bravery,
 		BattleResults: make([]BattleResult, 0),
 		House:         house,
 		Sponsor:       sponsor,
@@ -61,13 +59,16 @@ func NewKnight(name string, prowess int, house *House, sponsor *GloryBishop) *Kn
 	return knight
 }
 
-func (knight *Knight) GetCost() int {
-	underlyingValue := knight.Prowess * knight.House.Might
+// GetRecentReputation returns a knights reputation based on
+// their recent accomplishments. This will be a float, 0-1 is a
+// bad reputation, 1+ is a good reputation.
+func (knight *Knight) GetRecentReputation() float64 {
 	memoryLength := int(math.Min(5, float64(len(knight.BattleResults))))
 	if memoryLength == 0 {
-		return underlyingValue
+		return 1
 	}
 
+	// TODO: Make this less swingy from turn 0 to turn 1. Maybe assume an average history if less than max?
 	numRecentVictories := 0
 	for idx := 0; idx < memoryLength; idx++ {
 		battleIdx := len(knight.BattleResults) - (idx + 1)
@@ -76,12 +77,22 @@ func (knight *Knight) GetCost() int {
 			numRecentVictories++
 		}
 	}
+
 	/**
 	 * If a knight won all of their recent battles recentOpinion will be 2. If they won
 	 * 0 it will be 0.5. If they won half it will 1.
 	 */
-	recentOpinion := float64(numRecentVictories * 2) / float64(memoryLength)
-	return int(float64(underlyingValue) * recentOpinion)
+	recentReputation := float64(numRecentVictories * 2) / float64(memoryLength)
+	return recentReputation
+}
+
+func (knight *Knight) GetCost() int {
+	underlyingValue := knight.Prowess * knight.House.Might
+	return int(float64(underlyingValue) * knight.GetRecentReputation())
+}
+
+func (knight *Knight) GetTitle() string {
+	return fmt.Sprintf("Lady %s %s", knight.Name, knight.House.Name)
 }
 
 // GloryBishop is a member of the church who sponsors knights for glory.
@@ -97,6 +108,8 @@ type GameState struct {
 	Player *GloryBishop
 	Knights []*Knight
 	Houses []*House
+
+	NameGenerator names.NameGenerator
 }
 
 func RemoveItem[V comparable](list []V, item V) []V {
@@ -134,36 +147,36 @@ func SponsorKnight(bishop *GloryBishop, knight *Knight) {
 	knight.Sponsor = bishop
 }
 
-func GenerateWorld() ([]*House, []*Knight) {
+func GenerateWorld() {
 	numHouses := 5
 	numKnights := 10
 
-	var nameGenerator names.NameGenerator = names.NewSelectorNameGenerator("input_names.txt")
-
-
-	houses := make([]*House, 0, 5)
+	gameState.Houses = make([]*House, 0, 5)
 	for idx := 0; idx < numHouses; idx++ {
 		house := &House{
-			Name: nameGenerator.GenerateName(),
+			Name: gameState.NameGenerator.GenerateName(),
 			Banner: GenerateBanner(),
 			Might: RandomRange(1, MaxMight + 1),
 		}
-		houses = append(houses, house)
+		gameState.Houses = append(gameState.Houses, house)
 	}
 
-	knights := make([]*Knight, 0, numKnights)
+	gameState.Knights = make([]*Knight, 0, numKnights)
 	for idx := 0; idx < numKnights; idx++ {
-		knight := NewKnight(
-			nameGenerator.GenerateName(),
-			RandomRange(1, 5),
-			RandomSelect(houses),
-			nil,
-		)
-		// TODO: Should go in knight constructor?
-		knights = append(knights, knight)
+		GenerateKnight()
 	}
+}
 
-	return houses, knights
+func GenerateKnight() {
+	knight := NewKnight(
+		gameState.NameGenerator.GenerateName(),
+		RandomRange(1, 6),
+		RandomRange(1, 6),
+		RandomSelect(gameState.Houses),
+		nil,
+	)
+	// TODO: Should go in knight constructor?
+	gameState.Knights = append(gameState.Knights, knight)
 }
 
 func GenerateBanner() string {
@@ -232,14 +245,105 @@ func KillKnight(knight *Knight) {
 	gameState.Knights = RemoveItem(gameState.Knights, knight)
 }
 
+func ChooseHouseChampion(house *House) *Knight {
+	/**
+	 * Choose a champion for the house by rolling the bravery of all
+	 * knights and choosing the bravest. Prowess is used as a tie
+	 * breaker.
+	 */
+	maxBraveryHits := -1
+	var bravestKnight *Knight = nil
+	for _, knight := range house.Knights {
+		braveryHits := RollHits(knight.Bravery)
+		if braveryHits > maxBraveryHits {
+			bravestKnight = knight
+		} else if braveryHits == maxBraveryHits {
+			if knight.Prowess > bravestKnight.Prowess {
+				bravestKnight = knight
+			}
+		}
+	}
+	return bravestKnight
+}
+
 func RunBattle(houses []*House) {
 	attackingHouse := RandomSelect(houses)
 	possibleTargets := RemoveItem(houses, attackingHouse)
 	defendingHouse := RandomSelect(possibleTargets)
 	fmt.Printf("House %s attacks House %s!\n", attackingHouse.Name, defendingHouse.Name)
 
-	attackerHits := RollHits(attackingHouse.Might)
-	defenderHits := RollHits(defendingHouse.Might)
+
+	attackerAdvantage := 0
+	defenderAdvantage := 0
+
+	// NOTE: Maybe battles could have multiple "fronts" and we'd have a champion per front.
+	// number of fronts could depend on the terrain or some other factor?
+	attackingChampion := ChooseHouseChampion(attackingHouse)
+	defendingChampion := ChooseHouseChampion(defendingHouse)
+
+	if attackingChampion == nil && defendingChampion == nil {
+		fmt.Printf("Neither house could field a champion!\n")
+	} else if attackingChampion == nil {
+		defenderAdvantage = 1
+		fmt.Printf("House %s could not field a champion, giving House %s a tactical edge!\n", attackingHouse.Name, defendingHouse.Name)
+	} else if defendingChampion == nil {
+		attackerAdvantage = 1
+		fmt.Printf("House %s could not field a champion, giving House %s a tactical edge!\n", defendingHouse.Name, attackingHouse.Name)
+	} else {
+		attackerHits := RollHits(attackingChampion.Prowess)
+		defenderHits := RollHits(defendingChampion.Prowess)
+		// TODO: Maybe only kill if the margin is big enough.
+		// TODO: Award glory to victorious champions.
+		if attackerHits == defenderHits {
+			fmt.Printf(
+				"%s met %s on the battlefield, their duel raged until it met a stalemate[%d/%d vs %d/%d]!\n",
+				attackingChampion.GetTitle(), defendingChampion.GetTitle(),
+				attackerHits, attackingChampion.Prowess,
+				defenderHits, defendingChampion.Prowess,
+			)
+		} else if attackerHits > defenderHits {
+			// TODO: Reduce duplication between here and below.
+			fmt.Printf(
+				"%s slaid %s on the battlefield after an intense duel[%d/%d vs %d/%d], giving house %s a tactical edge!\n",
+				attackingChampion.GetTitle(), defendingChampion.GetTitle(),
+				attackerHits, attackingChampion.Prowess,
+				defenderHits, defendingChampion.Prowess,
+				attackingHouse.Name,
+			)
+
+			if attackingChampion.Sponsor != nil {
+				glory := int(5 * float64(defendingChampion.Prowess) * defendingChampion.GetRecentReputation())
+				gameState.Player.Glory += glory
+				fmt.Printf("The Church earned %d glory for sponsoring %s. You're sponsorships have earned the church %d glory in total.\n", glory, attackingChampion.GetTitle(), gameState.Player.Glory)
+			}
+
+			attackerAdvantage = 1
+			KillKnight(defendingChampion)
+		} else {
+			fmt.Printf(
+				"%s slaid %s on the battlefield after an intense duel[%d/%d vs %d/%d], giving house %s a tactical edge!\n",
+				defendingChampion.GetTitle(), attackingChampion.GetTitle(),
+				defenderHits, defendingChampion.Prowess,
+				attackerHits, attackingChampion.Prowess,
+				defendingHouse.Name,
+			)
+
+			if defendingChampion.Sponsor != nil {
+				glory := int(5 * float64(attackingChampion.Prowess) * attackingChampion.GetRecentReputation())
+				gameState.Player.Glory += glory
+				fmt.Printf("The Church earned %d glory for sponsoring %s. You're sponsorships have earned the church %d glory in total.\n", glory, defendingChampion.GetTitle(), gameState.Player.Glory)
+			}
+
+			defenderAdvantage = 1
+			KillKnight(attackingChampion)
+		}
+	}
+
+
+
+
+	attackerHits := RollHits(attackingHouse.Might + attackerAdvantage)
+	defenderHits := RollHits(defendingHouse.Might + defenderAdvantage)
 
 	var winner, loser *House
 	var winnerHits, loserHits int
@@ -249,6 +353,7 @@ func RunBattle(houses []*House) {
 	} else {
 		winner, winnerHits, loser, loserHits = defendingHouse, defenderHits, attackingHouse, attackerHits
 	}
+	// TODO: Print advantages?
 	fmt.Printf(
 		"House %s[%d/%d hits] defeated House %s[%d/%d hits]!\n",
 		winner.Name, winnerHits, winner.Might, loser.Name, loserHits, loser.Might,
@@ -258,29 +363,14 @@ func RunBattle(houses []*House) {
 	glory := (MaxMight + 1) + (loser.Might - winner.Might)
 	for _, knight := range winner.Knights {
 		knight.BattleResults = append(knight.BattleResults, Victory)
-
-		fmt.Printf(
-			"Ser %s was awarded %d glory for their deeds in battle!\n", knight.Name, glory)
 		if knight.Sponsor != nil {
 			gameState.Player.Glory += glory
-			fmt.Printf("The Church earned %d glory for sponsoring Ser %s. You're sponsorships have earned the church %d glory in total.\n", glory, knight.Name, gameState.Player.Glory)
+			fmt.Printf("The Church earned %d glory for sponsoring %s. You're sponsorships have earned the church %d glory in total.\n", glory, knight.GetTitle(), gameState.Player.Glory)
 		}
 	}
-
-	lossSeverity := winnerHits - loserHits
-	// Copy the slice as we may remove items from the primary slice so we can't iterate it.
-	loserKnights := loser.Knights
-	for _, knight := range loserKnights {
+	for _, knight := range loser.Knights {
 		knight.BattleResults = append(knight.BattleResults, Defeat)
-
-		survivalHits := RollHits(knight.Prowess)
-		if survivalHits < lossSeverity {
-			fmt.Printf(
-				"Ser %s fought valiantly[%d/%d hits] but was slain by the enemy forces[%d].\n",
-				knight.Name, survivalHits, knight.Prowess, lossSeverity,
-			)
-			KillKnight(knight)
-		}
+		// TODO: Maybe a chance of death here?
 	}
 
 	fmt.Printf("\n")
@@ -291,7 +381,7 @@ func DisplayState() {
 		fmt.Printf("Introducing the knights of House %s[might: %d]! Their banner is %s.\n", house.Name, house.Might, house.Banner)
 		for _, knight := range house.Knights {
 
-			fmt.Printf("Ser %s of House %s! [prowess: %d, cost: %d]\n", knight.Name, knight.House.Name, knight.Prowess, knight.GetCost())
+			fmt.Printf("%s! [prowess: %d, bravery: %d, cost: %d]\n", knight.GetTitle(), knight.Prowess, knight.Bravery, knight.GetCost())
 		}
 		fmt.Printf("\n")
 	}
@@ -309,6 +399,7 @@ func DoPlayerTurn() {
 
 		command := strings.Split(input, " ")
 		if command[0] == "done" {
+			fmt.Printf("\n====================\n\n")
 			break
 		} else if command[0] == "sponsor" {
 			knightName := command[1]
@@ -324,14 +415,21 @@ func DoPlayerTurn() {
 				continue
 			}
 			if foundKnight.Sponsor != nil {
-				fmt.Printf("Ser %s is already sponsored\n", foundKnight.Name)
+				fmt.Printf("%s is already sponsored\n", foundKnight.GetTitle())
+				continue
+			}
+
+			cost := foundKnight.GetCost()
+			if cost > gameState.Player.Coin {
+				fmt.Printf("The church coffers run low, %s costs %d coin but you only have %d.\n", foundKnight.GetTitle(), cost, gameState.Player.Coin)
+				continue
 			}
 
 			gameState.Player.Coin -= foundKnight.GetCost()
 			SponsorKnight(gameState.Player, foundKnight)
 			fmt.Printf(
-				"You have sponsored Ser %s of House %s, %d coin remaining\n",
-				foundKnight.Name, foundKnight.House.Name, gameState.Player.Coin,
+				"You have sponsored %s, %d coin remaining\n",
+				foundKnight.GetTitle(), gameState.Player.Coin,
 			)
 		}
 	}
@@ -343,10 +441,11 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 
 	gameState = &GameState{}
-	gameState.Houses, gameState.Knights = GenerateWorld()
+	gameState.NameGenerator = names.NewSelectorNameGenerator("input_names.txt")
+	GenerateWorld()
 
 	gameState.Player = &GloryBishop{
-		Coin: 50,
+		Coin: 15,
 		Glory: 0,
 	}
 
@@ -357,5 +456,13 @@ func main() {
 		for idx := 0; idx < numBattles; idx++ {
 			RunBattle(gameState.Houses)
 		}
+		fmt.Printf("\n=================\n\n")
+
+		numNewKnights := 1
+		for idx := 0; idx < numNewKnights; idx++ {
+			GenerateKnight()
+		}
+
+		gameState.Player.Coin += 5
 	}
 }
