@@ -16,6 +16,7 @@ var MaxMight = 5
 type House struct {
 	Name string
 	Banner string
+
 	/**
 	 * Make these values getters so they can be derived from other systems in the future
 	 * if necessary.
@@ -31,8 +32,16 @@ const (
 	Defeat
 )
 
+type Gender = int
+
+const (
+	Male Gender = iota
+	Female
+)
+
 type Knight struct {
 	Name string
+	Gender Gender
 
 	Prowess int
 	// TODO: Maybe rename to brashness?
@@ -44,9 +53,11 @@ type Knight struct {
 	Sponsor *GloryBishop
 }
 
-func NewKnight(name string, prowess int, bravery int, house *House, sponsor *GloryBishop) *Knight {
+func NewKnight(name string, gender Gender, prowess int, bravery int, house *House, sponsor *GloryBishop) *Knight {
 	knight := &Knight{
 		Name:          name,
+		// TODO: Get a list of male names and make it possible to be a man.
+		Gender:		   gender,
 		Prowess:       prowess,
 		Bravery:	   bravery,
 		BattleResults: make([]BattleResult, 0),
@@ -63,16 +74,17 @@ func NewKnight(name string, prowess int, bravery int, house *House, sponsor *Glo
 // their recent accomplishments. This will be a float, 0-1 is a
 // bad reputation, 1+ is a good reputation.
 func (knight *Knight) GetRecentReputation() float64 {
-	memoryLength := int(math.Min(5, float64(len(knight.BattleResults))))
+	maxMemoryLength := 5
+
+	memoryLength := int(math.Min(float64(maxMemoryLength), float64(len(knight.BattleResults))))
 	if memoryLength == 0 {
 		return 1
 	}
 
-	// TODO: Make this less swingy from turn 0 to turn 1. Maybe assume an average history if less than max?
-	numRecentVictories := 0
-	for idx := 0; idx < memoryLength; idx++ {
-		battleIdx := len(knight.BattleResults) - (idx + 1)
-		battleResult := knight.BattleResults[battleIdx]
+	// Fill out any missing battles with average results.
+	numRecentVictories := (maxMemoryLength -  memoryLength) / 2
+	memoryStartIdx := len(knight.BattleResults) - memoryLength
+	for _, battleResult := range knight.BattleResults[memoryStartIdx:] {
 		if battleResult == Victory {
 			numRecentVictories++
 		}
@@ -82,17 +94,24 @@ func (knight *Knight) GetRecentReputation() float64 {
 	 * If a knight won all of their recent battles recentOpinion will be 2. If they won
 	 * 0 it will be 0.5. If they won half it will 1.
 	 */
-	recentReputation := float64(numRecentVictories * 2) / float64(memoryLength)
+	recentReputation := 0.5 + ((float64(numRecentVictories) * 1.5) / float64(maxMemoryLength))
 	return recentReputation
 }
 
 func (knight *Knight) GetCost() int {
 	underlyingValue := knight.Prowess * knight.House.Might
-	return int(float64(underlyingValue) * knight.GetRecentReputation())
+	// TODO: Maybe adjust the math so we can't go below 1 without need a min?
+	return 1 + int(float64(underlyingValue) * knight.GetRecentReputation())
 }
 
 func (knight *Knight) GetTitle() string {
-	return fmt.Sprintf("Lady %s %s", knight.Name, knight.House.Name)
+	var genderedTitle string
+	if knight.Gender == Male {
+		genderedTitle = "Ser"
+	} else if knight.Gender == Female {
+		genderedTitle = "Lady"
+	}
+	return fmt.Sprintf("%s %s %s", genderedTitle, knight.Name, knight.House.Name)
 }
 
 // GloryBishop is a member of the church who sponsors knights for glory.
@@ -109,7 +128,8 @@ type GameState struct {
 	Knights []*Knight
 	Houses []*House
 
-	NameGenerator names.NameGenerator
+	FemaleNameGenerator names.NameGenerator
+	MaleNameGenerator names.NameGenerator
 }
 
 func RemoveItem[V comparable](list []V, item V) []V {
@@ -154,7 +174,7 @@ func GenerateWorld() {
 	gameState.Houses = make([]*House, 0, 5)
 	for idx := 0; idx < numHouses; idx++ {
 		house := &House{
-			Name: gameState.NameGenerator.GenerateName(),
+			Name: gameState.FemaleNameGenerator.GenerateName(),
 			Banner: GenerateBanner(),
 			Might: RandomRange(1, MaxMight + 1),
 		}
@@ -168,10 +188,17 @@ func GenerateWorld() {
 }
 
 func GenerateKnight() {
+	gender := RandomSelect([]Gender{Female, Male})
+	var name string
+	if gender == Female {
+		name = gameState.FemaleNameGenerator.GenerateName()
+	} else {
+		name = gameState.MaleNameGenerator.GenerateName()
+	}
+
 	knight := NewKnight(
-		gameState.NameGenerator.GenerateName(),
-		RandomRange(1, 6),
-		RandomRange(1, 6),
+		name, gender,
+		RandomRange(1, 6), RandomRange(1, 6),
 		RandomSelect(gameState.Houses),
 		nil,
 	)
@@ -185,13 +212,15 @@ func GenerateBanner() string {
 		"stag", "wolf", "crab", "crow", "lion", "elephant", "snake", "cross", "heart", "arrow", "ship", "rose", "sword",
 		"hanged man", "wheel", "octopus", "horse", "star", "fist", "sunrise", "star", "crescent moon", "beaver",
 		"sparrow", "eagle", "chain", "spear", "shield", "apple", "raindrop", "cloud", "lightning bolt", "crystal",
+		"demon", "angel", "dragon", "griffin", "unicorn", "hydra", "bull", "goat", "sheep",
 	}
 	colours := []string {
 		"crimson", "aqua", "light grey", "dark grey", "black", "white", "pink", "golden", "yellow", "blue", "red",
 		"purple", "turquoise", "amber", "violet", "orange", "navy", "magenta", "silver", "copper", "teal", "green",
 	}
 	adjectives := []string {
-		"flaming", "submerged", "bloody", "crowned", "upside down", "striped", "spotted", "mirrored",
+		"flaming", "submerged", "bloody", "crowned", "upside down", "striped", "spotted", "mirrored", "frozen",
+		"shattered",
 	}
 
 	// TODO: This could be made simpler with a tracery grammar.
@@ -304,7 +333,7 @@ func RunBattle(houses []*House) {
 		} else if attackerHits > defenderHits {
 			// TODO: Reduce duplication between here and below.
 			fmt.Printf(
-				"%s slaid %s on the battlefield after an intense duel[%d/%d vs %d/%d], giving house %s a tactical edge!\n",
+				"%s slayed %s on the battlefield after an intense duel[%d/%d vs %d/%d], giving house %s a tactical edge!\n",
 				attackingChampion.GetTitle(), defendingChampion.GetTitle(),
 				attackerHits, attackingChampion.Prowess,
 				defenderHits, defendingChampion.Prowess,
@@ -314,7 +343,7 @@ func RunBattle(houses []*House) {
 			if attackingChampion.Sponsor != nil {
 				glory := int(5 * float64(defendingChampion.Prowess) * defendingChampion.GetRecentReputation())
 				gameState.Player.Glory += glory
-				fmt.Printf("The Church earned %d glory for sponsoring %s. You're sponsorships have earned the church %d glory in total.\n", glory, attackingChampion.GetTitle(), gameState.Player.Glory)
+				fmt.Printf("The Church earned %d glory for sponsoring %s. Your sponsorships have earned the church %d glory in total.\n", glory, attackingChampion.GetTitle(), gameState.Player.Glory)
 			}
 
 			attackerAdvantage = 1
@@ -389,6 +418,8 @@ func DisplayState() {
 }
 
 func DoPlayerTurn() {
+	fmt.Printf("You have %d coin\n", gameState.Player.Coin)
+
 	// Player interaction loop.
 	reader := bufio.NewReader(os.Stdin)
 	for {
@@ -401,7 +432,17 @@ func DoPlayerTurn() {
 		if command[0] == "done" {
 			fmt.Printf("\n====================\n\n")
 			break
+		} else if command[0] == "help" {
+			fmt.Printf(
+				"sponsor <first-name>: pay a knight's cost in coin to sponsor them, gaining glory from their victories\n" +
+					"done: finalise your sponsorships for this season\n",
+				)
 		} else if command[0] == "sponsor" {
+			if len(command) < 2 {
+				fmt.Printf("Specify a knight(sponsor <first-name>)\n")
+				continue
+			}
+
 			knightName := command[1]
 			var foundKnight *Knight = nil
 			for _, knight := range gameState.Knights {
@@ -440,8 +481,20 @@ var gameState *GameState
 func main() {
 	rand.Seed(time.Now().UnixNano())
 
+	fmt.Printf(
+		"The Church brings glory to the many gods by using it's resources " +
+		"to make the gods' values more prevalent in the world. Glory is brought " +
+		"to each god differently. You are a bishop of the God of War, You bring " +
+		"glory to Them by sponsoring knights of the great houses, and having those knights " +
+		"see success in battle. Of course, good knights do not come cheap - but if their " +
+		"house falls on hard times bargains may present themselves. Be warned, a dead " +
+		"knight knows no glory.\n\nThe church provides you 5 coin per season to sponsor " +
+		"knights. Spend it wisely.\n\n",
+	)
+
 	gameState = &GameState{}
-	gameState.NameGenerator = names.NewSelectorNameGenerator("input_names.txt")
+	gameState.FemaleNameGenerator = names.NewSelectorNameGenerator("female_input_names.txt")
+	gameState.MaleNameGenerator = names.NewSelectorNameGenerator("male_input_names.txt")
 	GenerateWorld()
 
 	gameState.Player = &GloryBishop{
@@ -455,6 +508,7 @@ func main() {
 		numBattles := 3
 		for idx := 0; idx < numBattles; idx++ {
 			RunBattle(gameState.Houses)
+			time.Sleep(500 * time.Millisecond)
 		}
 		fmt.Printf("\n=================\n\n")
 

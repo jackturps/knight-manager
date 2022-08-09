@@ -23,7 +23,7 @@ func NewSelectorNameGenerator(inputFile string) *SelectorNameGenerator {
 		names: make([]string, 0),
 	}
 
-	readFile, err := os.Open("input_names.txt")
+	readFile, err := os.Open(inputFile)
 	defer readFile.Close()
 
 	if err != nil {
