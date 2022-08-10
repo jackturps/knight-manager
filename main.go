@@ -183,11 +183,11 @@ func GenerateWorld() {
 
 	gameState.Knights = make([]*Knight, 0, numKnights)
 	for idx := 0; idx < numKnights; idx++ {
-		GenerateKnight()
+		GenerateKnight(RandomSelect(gameState.Houses))
 	}
 }
 
-func GenerateKnight() {
+func GenerateKnight(house *House) {
 	gender := RandomSelect([]Gender{Female, Male})
 	var name string
 	if gender == Female {
@@ -199,7 +199,7 @@ func GenerateKnight() {
 	knight := NewKnight(
 		name, gender,
 		RandomRange(1, 6), RandomRange(1, 6),
-		RandomSelect(gameState.Houses),
+		house,
 		nil,
 	)
 	// TODO: Should go in knight constructor?
@@ -285,6 +285,7 @@ func ChooseHouseChampion(house *House) *Knight {
 	for _, knight := range house.Knights {
 		braveryHits := RollHits(knight.Bravery)
 		if braveryHits > maxBraveryHits {
+			maxBraveryHits = braveryHits
 			bravestKnight = knight
 		} else if braveryHits == maxBraveryHits {
 			if knight.Prowess > bravestKnight.Prowess {
@@ -350,7 +351,7 @@ func RunBattle(houses []*House) {
 			KillKnight(defendingChampion)
 		} else {
 			fmt.Printf(
-				"%s slaid %s on the battlefield after an intense duel[%d/%d vs %d/%d], giving house %s a tactical edge!\n",
+				"%s slayed %s on the battlefield after an intense duel[%d/%d vs %d/%d], giving house %s a tactical edge!\n",
 				defendingChampion.GetTitle(), attackingChampion.GetTitle(),
 				defenderHits, defendingChampion.Prowess,
 				attackerHits, attackingChampion.Prowess,
@@ -367,9 +368,6 @@ func RunBattle(houses []*House) {
 			KillKnight(attackingChampion)
 		}
 	}
-
-
-
 
 	attackerHits := RollHits(attackingHouse.Might + attackerAdvantage)
 	defenderHits := RollHits(defendingHouse.Might + defenderAdvantage)
@@ -397,9 +395,21 @@ func RunBattle(houses []*House) {
 			fmt.Printf("The Church earned %d glory for sponsoring %s. You're sponsorships have earned the church %d glory in total.\n", glory, knight.GetTitle(), gameState.Player.Glory)
 		}
 	}
-	for _, knight := range loser.Knights {
+
+	loserKnightsCopy := make([]*Knight, len(loser.Knights))
+	copy(loserKnightsCopy, loser.Knights)
+	for _, knight := range loserKnightsCopy {
 		knight.BattleResults = append(knight.BattleResults, Defeat)
-		// TODO: Maybe a chance of death here?
+
+		defeatSeverity := (winnerHits - loserHits) / 2
+		survivalHits := RollHits(knight.Prowess)
+		if survivalHits < defeatSeverity {
+			fmt.Printf(
+				"%s was overwhelmed by the enemy forces and killed[%d/%d vs %d]\n",
+				knight.GetTitle(), survivalHits, knight.Prowess, defeatSeverity,
+			)
+			KillKnight(knight)
+		}
 	}
 
 	fmt.Printf("\n")
@@ -409,18 +419,34 @@ func DisplayState() {
 	for _, house := range gameState.Houses {
 		fmt.Printf("Introducing the knights of House %s[might: %d]! Their banner is %s.\n", house.Name, house.Might, house.Banner)
 		for _, knight := range house.Knights {
-
-			fmt.Printf("%s! [prowess: %d, bravery: %d, cost: %d]\n", knight.GetTitle(), knight.Prowess, knight.Bravery, knight.GetCost())
+			sponsoredLabel := ""
+			if knight.Sponsor != nil {
+				sponsoredLabel = "* "
+			}
+			fmt.Printf(
+				"%s%s! [prowess: %d, bravery: %d, cost: %d]\n",
+				sponsoredLabel, knight.GetTitle(), knight.Prowess, knight.Bravery, knight.GetCost(),
+			)
 		}
 		fmt.Printf("\n")
 	}
 	fmt.Printf("\n===================\n\n")
 }
 
+func FindKnightByName(knightName string) *Knight {
+	for _, knight := range gameState.Knights {
+		if knight.Name == knightName {
+			return knight
+		}
+	}
+	return nil
+}
+
 func DoPlayerTurn() {
 	fmt.Printf("You have %d coin\n", gameState.Player.Coin)
 
 	// Player interaction loop.
+	// TODO: For the love of god clean this up.
 	reader := bufio.NewReader(os.Stdin)
 	for {
 		fmt.Print("> ")
@@ -435,8 +461,34 @@ func DoPlayerTurn() {
 		} else if command[0] == "help" {
 			fmt.Printf(
 				"sponsor <first-name>: pay a knight's cost in coin to sponsor them, gaining glory from their victories\n" +
+					"research <first-name>: discover information about a knight\n" +
 					"done: finalise your sponsorships for this season\n",
 				)
+		} else if command[0] == "research" {
+			if len(command) < 2 {
+				fmt.Printf("Specify a knight(research <first-name>)\n")
+				continue
+			}
+
+			knightName := command[1]
+			knight := FindKnightByName(knightName)
+			if knight == nil {
+				fmt.Printf("Could not find knight '%s'\n", knightName)
+				continue
+			}
+
+			battleResultString := ""
+			for _, battleResult := range knight.BattleResults {
+				if battleResult == Victory {
+					battleResultString += "V "
+				} else {
+					battleResultString += "D "
+				}
+			}
+			fmt.Printf(
+				"%s has fought in %d battles, their results are: %s\n",
+				knight.GetTitle(), len(knight.BattleResults), battleResultString,
+			)
 		} else if command[0] == "sponsor" {
 			if len(command) < 2 {
 				fmt.Printf("Specify a knight(sponsor <first-name>)\n")
@@ -444,13 +496,7 @@ func DoPlayerTurn() {
 			}
 
 			knightName := command[1]
-			var foundKnight *Knight = nil
-			for _, knight := range gameState.Knights {
-				if knight.Name == knightName {
-					foundKnight = knight
-					break
-				}
-			}
+			foundKnight := FindKnightByName(knightName)
 			if foundKnight == nil {
 				fmt.Printf("Could not find knight '%s'\n", knightName)
 				continue
@@ -502,19 +548,25 @@ func main() {
 		Glory: 0,
 	}
 
+	knightedHouseIdx := RandomRange(0, len(gameState.Houses))
+	numNewKnightsPerSeason := 3
+	numBattlesPerSeason := 3
+
 	for {
 		DisplayState()
 		DoPlayerTurn()
-		numBattles := 3
-		for idx := 0; idx < numBattles; idx++ {
+		for idx := 0; idx < numBattlesPerSeason; idx++ {
 			RunBattle(gameState.Houses)
 			time.Sleep(500 * time.Millisecond)
 		}
 		fmt.Printf("\n=================\n\n")
 
-		numNewKnights := 1
-		for idx := 0; idx < numNewKnights; idx++ {
-			GenerateKnight()
+
+		// Round robin which houses get new knights.
+		for idx := 0; idx < numNewKnightsPerSeason; idx++ {
+			house := gameState.Houses[knightedHouseIdx]
+			GenerateKnight(house)
+			knightedHouseIdx = (knightedHouseIdx + 1) % len(gameState.Houses)
 		}
 
 		gameState.Player.Coin += 5
