@@ -7,6 +7,40 @@ import (
 	"strings"
 )
 
+func Research(entityName string) {
+	if knight := FindKnightByName(entityName); knight != nil {
+		ResearchKnight(knight)
+	} else if house := FindHouseByName(entityName); house != nil {
+		ResearchHouse(house)
+	} else {
+		fmt.Printf("Could not find knight or house with name '%s'\n", entityName)
+	}
+}
+
+func ResearchKnight(knight *Knight) {
+	battleResultString := ""
+	for _, battleResult := range knight.BattleResults {
+		if battleResult == Victory {
+			battleResultString += "V "
+		} else {
+			battleResultString += "D "
+		}
+	}
+	fmt.Printf(
+		"%s has fought in %d battles, their results are: %s\n",
+		knight.GetTitle(), len(knight.BattleResults), battleResultString,
+	)
+}
+
+func ResearchHouse(house *House) {
+	for targetHouse, relation := range house.DiplomaticRelations {
+		fmt.Printf(
+			"%s's tensions with %s are at %d\n",
+			house.GetTitle(), targetHouse.GetTitle(), relation.Tension,
+		)
+	}
+}
+
 func DoPlayerTurn() {
 	fmt.Printf("You have %d coin\n", Game.Player.Coin)
 
@@ -25,35 +59,18 @@ func DoPlayerTurn() {
 			break
 		} else if command[0] == "help" {
 			fmt.Printf(
-				"sponsor <first-name>: pay a knight's cost in coin to sponsor them, gaining glory from their victories\n" +
-					"research <first-name>: discover information about a knight\n" +
+				"sponsor <knight-name>: pay a knight's cost in coin to sponsor them, gaining glory from their victories\n" +
+					"research <knight-name|house-name>: discover information about a knight or house\n" +
 					"done: finalise your sponsorships for this season\n",
 			)
 		} else if command[0] == "research" {
 			if len(command) < 2 {
-				fmt.Printf("Specify a knight(research <first-name>)\n")
+				fmt.Printf("Specify a knight or house(research <first-name>)\n")
 				continue
 			}
 
-			knightName := command[1]
-			knight := FindKnightByName(knightName)
-			if knight == nil {
-				fmt.Printf("Could not find knight '%s'\n", knightName)
-				continue
-			}
-
-			battleResultString := ""
-			for _, battleResult := range knight.BattleResults {
-				if battleResult == Victory {
-					battleResultString += "V "
-				} else {
-					battleResultString += "D "
-				}
-			}
-			fmt.Printf(
-				"%s has fought in %d battles, their results are: %s\n",
-				knight.GetTitle(), len(knight.BattleResults), battleResultString,
-			)
+			entityName := command[1]
+			Research(entityName)
 		} else if command[0] == "sponsor" {
 			if len(command) < 2 {
 				fmt.Printf("Specify a knight(sponsor <first-name>)\n")

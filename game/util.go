@@ -5,6 +5,41 @@ import (
 	"math/rand"
 )
 
+type Number interface {
+	int | float64
+}
+
+func Max[V Number](item1 V, item2 V) V {
+	if item1 > item2 {
+		return item1
+	} else {
+		return item2
+	}
+}
+
+func Min[V Number](item1 V, item2 V) V {
+	if item1 < item2 {
+		return item1
+	} else {
+		return item2
+	}
+}
+
+func CopySlice[V any](list []V) []V {
+	newList := make([]V, len(list))
+	copy(newList, list)
+	return newList
+}
+
+func Exists[V comparable](list []V, item V) bool {
+	for _, foundItem := range list {
+		if item == foundItem {
+			return true
+		}
+	}
+	return false
+}
+
 func RemoveItem[V comparable](list []V, item V) []V {
 	// Copy to prevent in place modification of input slice. Turns out append modifies!
 	listCopy := make([]V, len(list))
@@ -28,4 +63,20 @@ func RandomRange(min int, max int) int {
 		panic(fmt.Sprintf("min(%d) must be less than or equal to max(%d)", min, max))
 	}
 	return rand.Intn(max - min) + min
+}
+
+func RandomizeOrder[V any] (list []V) []V {
+	// Copy to prevent in place modification of input slice.
+	listCopy := make([]V, len(list))
+	copy(listCopy, list)
+
+	var swapValue V
+	for idx, value := range listCopy {
+		swapIdx := RandomRange(0, len(listCopy))
+		swapValue = listCopy[swapIdx]
+		listCopy[swapIdx] = value
+		listCopy[idx] = swapValue
+	}
+
+	return listCopy
 }

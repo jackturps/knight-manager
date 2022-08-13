@@ -8,6 +8,10 @@ import (
 
 var MaxMight = 5
 
+type DiplomaticRelation struct {
+	Tension int
+}
+
 type House struct {
 	Name string
 	Banner string
@@ -17,18 +21,13 @@ type House struct {
 	 * if necessary.
 	 */
 	Might int
+
 	Knights []*Knight
+	DiplomaticRelations map[*House]*DiplomaticRelation
 }
 
-type War struct {
-	attacker *Alliance
-	defender *Alliance
-}
-
-type Alliance struct {
-	Leader *House
-	Allies []*House
-	Morale int
+func (house *House) GetTitle() string {
+	return fmt.Sprintf("House %s", house.Name)
 }
 
 // GloryBishop is a member of the church who sponsors knights for glory.
@@ -44,6 +43,7 @@ type GameState struct {
 	Player *GloryBishop
 	Knights []*Knight
 	Houses []*House
+	Wars []*War
 
 	FemaleNameGenerator names.NameGenerator
 	MaleNameGenerator names.NameGenerator
@@ -63,16 +63,32 @@ func GenerateWorld() {
 	numHouses := 5
 	numKnights := 10
 
+	// Generate houses.
 	Game.Houses = make([]*House, 0, 5)
 	for idx := 0; idx < numHouses; idx++ {
 		house := &House{
 			Name:   Game.FemaleNameGenerator.GenerateName(),
 			Banner: GenerateBanner(),
 			Might:  RandomRange(1, MaxMight + 1),
+			DiplomaticRelations: make(map[*House]*DiplomaticRelation, 0),
 		}
 		Game.Houses = append(Game.Houses, house)
 	}
 
+	// Create relationships between houses.
+	for _, srcHouse := range Game.Houses {
+		for _, dstHouse := range Game.Houses {
+			// Can't have relation with your own house.
+			if srcHouse == dstHouse {
+				continue
+			}
+			srcHouse.DiplomaticRelations[dstHouse] = &DiplomaticRelation{
+				Tension: RandomRange(0, 6),
+			}
+		}
+	}
+
+	// Generate knights.
 	Game.Knights = make([]*Knight, 0, numKnights)
 	for idx := 0; idx < numKnights; idx++ {
 		GenerateKnight(RandomSelect(Game.Houses))
@@ -188,12 +204,11 @@ func ChooseHouseChampion(house *House) *Knight {
 	return bravestKnight
 }
 
-func RunBattle(houses []*House) {
-	attackingHouse := RandomSelect(houses)
-	possibleTargets := RemoveItem(houses, attackingHouse)
-	defendingHouse := RandomSelect(possibleTargets)
-	fmt.Printf("House %s attacks House %s!\n", attackingHouse.Name, defendingHouse.Name)
-
+// Returns the margin of the attacker. This will be <=0 if they lost
+// and >0 if they won.
+func RunBattle(attackingHouse *House, defendingHouse *House) int {
+	// TODO: Reduce morale for every knight killed?
+	fmt.Printf("%s attacks %s!\n", attackingHouse.GetTitle(), defendingHouse.GetTitle())
 
 	attackerAdvantage := 0
 	defenderAdvantage := 0
@@ -207,10 +222,10 @@ func RunBattle(houses []*House) {
 		fmt.Printf("Neither house could field a champion!\n")
 	} else if attackingChampion == nil {
 		defenderAdvantage = 1
-		fmt.Printf("House %s could not field a champion, giving House %s a tactical edge!\n", attackingHouse.Name, defendingHouse.Name)
+		fmt.Printf("%s could not field a champion, giving %s a tactical edge!\n", attackingHouse.GetTitle(), defendingHouse.GetTitle())
 	} else if defendingChampion == nil {
 		attackerAdvantage = 1
-		fmt.Printf("House %s could not field a champion, giving House %s a tactical edge!\n", defendingHouse.Name, attackingHouse.Name)
+		fmt.Printf("%s could not field a champion, giving %s a tactical edge!\n", defendingHouse.GetTitle(), attackingHouse.GetTitle())
 	} else {
 		attackerHits := RollHits(attackingChampion.Prowess)
 		defenderHits := RollHits(defendingChampion.Prowess)
@@ -226,11 +241,11 @@ func RunBattle(houses []*House) {
 		} else if attackerHits > defenderHits {
 			// TODO: Reduce duplication between here and below.
 			fmt.Printf(
-				"%s slayed %s on the battlefield after an intense duel[%d/%d vs %d/%d], giving house %s a tactical edge!\n",
+				"%s slayed %s on the battlefield after an intense duel[%d/%d vs %d/%d], giving %s a tactical edge!\n",
 				attackingChampion.GetTitle(), defendingChampion.GetTitle(),
 				attackerHits, attackingChampion.Prowess,
 				defenderHits, defendingChampion.Prowess,
-				attackingHouse.Name,
+				attackingHouse.GetTitle(),
 			)
 
 			if attackingChampion.Sponsor != nil {
@@ -243,11 +258,11 @@ func RunBattle(houses []*House) {
 			KillKnight(defendingChampion)
 		} else {
 			fmt.Printf(
-				"%s slayed %s on the battlefield after an intense duel[%d/%d vs %d/%d], giving house %s a tactical edge!\n",
+				"%s slayed %s on the battlefield after an intense duel[%d/%d vs %d/%d], giving %s a tactical edge!\n",
 				defendingChampion.GetTitle(), attackingChampion.GetTitle(),
 				defenderHits, defendingChampion.Prowess,
 				attackerHits, attackingChampion.Prowess,
-				defendingHouse.Name,
+				defendingHouse.GetTitle(),
 			)
 
 			if defendingChampion.Sponsor != nil {
@@ -274,8 +289,8 @@ func RunBattle(houses []*House) {
 	}
 	// TODO: Print advantages?
 	fmt.Printf(
-		"House %s[%d/%d hits] defeated House %s[%d/%d hits]!\n",
-		winner.Name, winnerHits, winner.Might, loser.Name, loserHits, loser.Might,
+		"%s[%d/%d hits] defeated %s[%d/%d hits]!\n",
+		winner.GetTitle(), winnerHits, winner.Might, loser.GetTitle(), loserHits, loser.Might,
 	)
 
 	// Award more glory to underdogs and less to bullies.
@@ -304,12 +319,12 @@ func RunBattle(houses []*House) {
 		}
 	}
 
-	fmt.Printf("\n")
+	return attackerHits - defenderHits
 }
 
 func DisplayState() {
 	for _, house := range Game.Houses {
-		fmt.Printf("Introducing the knights of House %s[might: %d]! Their banner is %s.\n", house.Name, house.Might, house.Banner)
+		fmt.Printf("Introducing the knights of %s[might: %d]! Their banner is %s.\n", house.GetTitle(), house.Might, house.Banner)
 		for _, knight := range house.Knights {
 			sponsoredLabel := ""
 			if knight.Sponsor != nil {
@@ -329,6 +344,16 @@ func FindKnightByName(knightName string) *Knight {
 	for _, knight := range Game.Knights {
 		if knight.Name == knightName {
 			return knight
+		}
+	}
+	return nil
+}
+
+// TODO: Can this be done with generics or interfaces?
+func FindHouseByName(houseName string) *House {
+	for _, house := range Game.Houses {
+		if house.Name == houseName {
+			return house
 		}
 	}
 	return nil
