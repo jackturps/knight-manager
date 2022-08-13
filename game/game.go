@@ -60,7 +60,7 @@ func SponsorKnight(bishop *GloryBishop, knight *Knight) {
 }
 
 func GenerateWorld() {
-	numHouses := 5
+	numHouses := 6
 	numKnights := 10
 
 	// Generate houses.
@@ -83,7 +83,7 @@ func GenerateWorld() {
 				continue
 			}
 			srcHouse.DiplomaticRelations[dstHouse] = &DiplomaticRelation{
-				Tension: RandomRange(0, 6),
+				Tension: 0,
 			}
 		}
 	}

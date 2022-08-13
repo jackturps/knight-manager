@@ -45,6 +45,11 @@ func main() {
 		game.DisplayState()
 		game.DoPlayerTurn()
 
+		for idx := 0; idx < 3; idx++ {
+			game.DoWorldEvent()
+		}
+		fmt.Printf("\n")
+
 		if len(game.Game.Wars) == 0 {
 			// TODO: Properly consider doing more than 1 war at a time.
 			game.StartWars()

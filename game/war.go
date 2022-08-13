@@ -73,7 +73,7 @@ func CreateWar(attackerHouse *House, defenderHouse *House) *War {
 
 	randomizedHouses := RandomizeOrder(Game.Houses)
 
-	// TODO: Get an ally for each house before increasing the house might to prevent favoring the attacker.
+	// Assign allies to each side in lockstep to prevent biases towards one side.
 	attackerAllyIdx := 0
 	defenderAllyIdx := 0
 	for attackerAllyIdx < len(Game.Houses) || defenderAllyIdx < len(Game.Houses) {
@@ -119,7 +119,7 @@ func StartWars() {
 			// TODO: The ob should probably have another factor/be higher here, otherwise weak houses get trampled.
 			// TODO: Opponent might should be in relation to your might. Subtract or divide?
 			// TODO: Start multiple wars if we need to. Make wars a bit less common.
-			if tensionHits >= targetHouse.Might {
+			if tensionHits >= targetHouse.Might + 3 {
 				war := CreateWar(house, targetHouse)
 				Game.Wars = append(Game.Wars, war)
 				return
@@ -130,6 +130,12 @@ func StartWars() {
 }
 
 func (war *War) DoNextBattles() {
+	/**
+	 * Wars are run by giving each house on both sides a chance to attack
+	 * a random house on the other side. A "turn" is one attack from each side.
+	 * If you attack your opponent and win you reduce their alliances morale by
+	 * the margin of the success.
+	 */
 	allAttackers := make([]*House, 0, len(war.Attackers.Allies) + 1)
 	allAttackers = append(allAttackers, war.Attackers.Leader)
 	allAttackers = append(allAttackers, war.Attackers.Allies...)
@@ -148,7 +154,7 @@ func (war *War) DoNextBattles() {
 		if attackerMargin > 0 {
 			war.Defenders.Morale -= attackerMargin
 			fmt.Printf(
-				"The morale of %s's alliance is now at %d\n",
+				"The morale of %s's alliance dropped to %d\n",
 				war.Defenders.Leader.GetTitle(), war.Defenders.Morale,
 			)
 		}
