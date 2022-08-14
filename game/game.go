@@ -59,6 +59,44 @@ func SponsorKnight(bishop *GloryBishop, knight *Knight) {
 	knight.Sponsor = bishop
 }
 
+func RemoveHouse(house *House) {
+	for _, knight := range house.Knights {
+		Game.Knights = RemoveItem(Game.Knights, knight)
+	}
+	Game.Houses = RemoveItem(Game.Houses, house)
+}
+
+func GenerateHouse() *House {
+	house := &House{
+		Name:   Game.FemaleNameGenerator.GenerateName(),
+		Banner: GenerateBanner(),
+		Might:  RandomRange(1, MaxMight + 1),
+		DiplomaticRelations: make(map[*House]*DiplomaticRelation, 0),
+	}
+	Game.Houses = append(Game.Houses, house)
+	InitNewDiplomaticRelations()
+	return house
+}
+
+func InitNewDiplomaticRelations() {
+	for _, srcHouse := range Game.Houses {
+		for _, dstHouse := range Game.Houses {
+			// Can't have relation with your own house.
+			if srcHouse == dstHouse {
+				continue
+			}
+			// Don't overwrite existing relationship.
+			if _, houseFound := srcHouse.DiplomaticRelations[dstHouse]; houseFound {
+				continue
+			}
+
+			srcHouse.DiplomaticRelations[dstHouse] = &DiplomaticRelation{
+				Tension: 0,
+			}
+		}
+	}
+}
+
 func GenerateWorld() {
 	numHouses := 6
 	numKnights := 10
@@ -66,26 +104,7 @@ func GenerateWorld() {
 	// Generate houses.
 	Game.Houses = make([]*House, 0, 5)
 	for idx := 0; idx < numHouses; idx++ {
-		house := &House{
-			Name:   Game.FemaleNameGenerator.GenerateName(),
-			Banner: GenerateBanner(),
-			Might:  RandomRange(1, MaxMight + 1),
-			DiplomaticRelations: make(map[*House]*DiplomaticRelation, 0),
-		}
-		Game.Houses = append(Game.Houses, house)
-	}
-
-	// Create relationships between houses.
-	for _, srcHouse := range Game.Houses {
-		for _, dstHouse := range Game.Houses {
-			// Can't have relation with your own house.
-			if srcHouse == dstHouse {
-				continue
-			}
-			srcHouse.DiplomaticRelations[dstHouse] = &DiplomaticRelation{
-				Tension: 0,
-			}
-		}
+		GenerateHouse()
 	}
 
 	// Generate knights.
@@ -326,13 +345,9 @@ func DisplayState() {
 	for _, house := range Game.Houses {
 		fmt.Printf("Introducing the knights of %s[might: %d]! Their banner is %s.\n", house.GetTitle(), house.Might, house.Banner)
 		for _, knight := range house.Knights {
-			sponsoredLabel := ""
-			if knight.Sponsor != nil {
-				sponsoredLabel = "* "
-			}
 			fmt.Printf(
-				"%s%s! [prowess: %d, bravery: %d, cost: %d]\n",
-				sponsoredLabel, knight.GetTitle(), knight.Prowess, knight.Bravery, knight.GetCost(),
+				"%s! [prowess: %d, bravery: %d, cost: %d]\n",
+				knight.GetTitle(), knight.Prowess, knight.Bravery, knight.GetCost(),
 			)
 		}
 		fmt.Printf("\n")

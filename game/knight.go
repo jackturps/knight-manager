@@ -89,5 +89,17 @@ func (knight *Knight) GetTitle() string {
 	} else if knight.Gender == Female {
 		genderedTitle = "Lady"
 	}
-	return fmt.Sprintf("%s %s %s", genderedTitle, knight.Name, knight.House.Name)
+
+	title := fmt.Sprintf("%s %s %s", genderedTitle, knight.Name, knight.House.Name)
+	if knight.Sponsor != nil {
+		title = ColouredText(GreenTextCode, title)
+	}
+	return title
+}
+
+var GreenTextCode = "\033[92m"
+var DefaultColourCode = "\033[0m"
+
+func ColouredText(colourCode string, text string) string {
+	return fmt.Sprintf("%s%s%s", colourCode, text, DefaultColourCode)
 }

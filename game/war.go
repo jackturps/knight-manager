@@ -191,6 +191,9 @@ func (war *War) EndWar() {
 	attackLeader := war.Attackers.Leader
 	defenseLeader := war.Defenders.Leader
 
+	attackLeader.DiplomaticRelations[defenseLeader].Tension = 0
+	defenseLeader.DiplomaticRelations[attackLeader].Tension = 0
+
 	if war.Attackers.Morale <= 0 && war.Defenders.Morale <= 0 {
 		fmt.Printf(
 			"The war between %s and %s ended in a truce after significant losses on both sides. " +
@@ -204,17 +207,26 @@ func (war *War) EndWar() {
 	} else if war.Defenders.Morale <= 0 {
 		GiveWarRewards(war.Attackers, war.Defenders)
 	}
-
-	attackLeader.DiplomaticRelations[defenseLeader].Tension = 0
-	defenseLeader.DiplomaticRelations[attackLeader].Tension = 0
 }
 
 func GiveWarRewards(winner *Alliance, loser *Alliance) {
-	fmt.Printf(
-		"%s surrenders the war to %s. %s's might increases by 1, %s's might decreases by 1.\n\n",
-		loser.Leader.GetTitle(), winner.Leader.GetTitle(),
-		winner.Leader.GetTitle(), loser.Leader.GetTitle(),
-	)
-	loser.Leader.Might = Max[int](loser.Leader.Might - 1, 1)
 	winner.Leader.Might = Min[int](winner.Leader.Might + 1, MaxMight)
+
+	// Destroy weak houses when they lose.
+	if loser.Leader.Might == 1 {
+		fmt.Printf(
+			"%s surrenders the war to %s. %s's might increases by 1. %s is crippled by the defeat and their house falls out of power.\n",
+			loser.Leader.GetTitle(), winner.Leader.GetTitle(), winner.Leader.GetTitle(), loser.Leader.GetTitle(),
+		)
+		RemoveHouse(loser.Leader)
+		newHouse := GenerateHouse()
+		fmt.Printf("%s rises to power.\n\n", newHouse.GetTitle())
+	} else {
+		fmt.Printf(
+			"%s surrenders the war to %s. %s's might increases by 1, %s's might decreases by 1.\n\n",
+			loser.Leader.GetTitle(), winner.Leader.GetTitle(),
+			winner.Leader.GetTitle(), loser.Leader.GetTitle(),
+		)
+		loser.Leader.Might = Max[int](loser.Leader.Might - 1, 1)
+	}
 }
