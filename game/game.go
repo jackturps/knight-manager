@@ -7,6 +7,7 @@ import (
 )
 
 var MaxMight = 5
+var MaxWealth = 5
 
 type DiplomaticRelation struct {
 	Tension int
@@ -21,6 +22,7 @@ type House struct {
 	 * if necessary.
 	 */
 	Might int
+	Wealth int
 
 	Knights []*Knight
 	DiplomaticRelations map[*House]*DiplomaticRelation
@@ -28,6 +30,28 @@ type House struct {
 
 func (house *House) GetTitle() string {
 	return fmt.Sprintf("House %s", house.Name)
+}
+
+// NumWars returns the number of wars a house is currently participating in.
+func (house *House) NumWars() int {
+	numWars := 0
+	for _, war := range Game.Wars {
+		if war.Attackers.Leader == house {
+			numWars++
+		} else if war.Defenders.Leader == house {
+			numWars++
+		} else if Exists(war.Attackers.Allies, house) {
+			numWars++
+		} else if Exists(war.Defenders.Allies, house) {
+			numWars++
+		}
+	}
+	return numWars
+}
+
+func (house *House) GetAdjustedMight() int {
+	// Reduce might for each extra war the house is in.
+	return house.Might - Max[int](0, house.NumWars() - 1)
 }
 
 // GloryBishop is a member of the church who sponsors knights for glory.
@@ -59,11 +83,29 @@ func SponsorKnight(bishop *GloryBishop, knight *Knight) {
 	knight.Sponsor = bishop
 }
 
-func RemoveHouse(house *House) {
-	for _, knight := range house.Knights {
+func DestroyHouse(destroyedHouse *House) {
+	for _, house := range Game.Houses {
+		delete(house.DiplomaticRelations, destroyedHouse)
+	}
+	for _, war := range CopySlice(Game.Wars) {
+		// End the war if the destroyedHouse is a primary fighter.
+		if war.Attackers.Leader == destroyedHouse {
+			fmt.Printf("%s could no longer fight in the war against %s. The war is over.\n", destroyedHouse.GetTitle(), war.Defenders.Leader.GetTitle())
+			Game.Wars = RemoveItem(Game.Wars, war)
+		}
+		if war.Defenders.Leader == destroyedHouse {
+			fmt.Printf("%s could no longer fight in the war against %s. The war is over.\n", destroyedHouse.GetTitle(), war.Attackers.Leader.GetTitle())
+			Game.Wars = RemoveItem(Game.Wars, war)
+		}
+
+		// If the destroyedHouse was just an ally, remove them from the allies.
+		war.Attackers.Allies = RemoveItem(war.Attackers.Allies, destroyedHouse)
+		war.Defenders.Allies = RemoveItem(war.Defenders.Allies, destroyedHouse)
+	}
+	for _, knight := range destroyedHouse.Knights {
 		Game.Knights = RemoveItem(Game.Knights, knight)
 	}
-	Game.Houses = RemoveItem(Game.Houses, house)
+	Game.Houses = RemoveItem(Game.Houses, destroyedHouse)
 }
 
 func GenerateHouse() *House {
@@ -71,6 +113,8 @@ func GenerateHouse() *House {
 		Name:   Game.FemaleNameGenerator.GenerateName(),
 		Banner: GenerateBanner(),
 		Might:  RandomRange(1, MaxMight + 1),
+		// TODO: Make wealth related to might of house in some way?
+		Wealth: RandomRange(1, MaxWealth + 1),
 		DiplomaticRelations: make(map[*House]*DiplomaticRelation, 0),
 	}
 	Game.Houses = append(Game.Houses, house)
@@ -193,14 +237,6 @@ func RollHits(rating int) int {
 	return successes
 }
 
-func KillKnight(knight *Knight) {
-	knight.House.Knights = RemoveItem(knight.House.Knights, knight)
-	if knight.Sponsor != nil {
-		knight.Sponsor.SponsoredKnights = RemoveItem(knight.Sponsor.SponsoredKnights, knight)
-	}
-	Game.Knights = RemoveItem(Game.Knights, knight)
-}
-
 func ChooseHouseChampion(house *House) *Knight {
 	/**
 	 * Choose a champion for the house by rolling the bravery of all
@@ -295,8 +331,8 @@ func RunBattle(attackingHouse *House, defendingHouse *House) int {
 		}
 	}
 
-	attackerHits := RollHits(attackingHouse.Might + attackerAdvantage)
-	defenderHits := RollHits(defendingHouse.Might + defenderAdvantage)
+	attackerHits := RollHits(attackingHouse.GetAdjustedMight() + attackerAdvantage)
+	defenderHits := RollHits(defendingHouse.GetAdjustedMight() + defenderAdvantage)
 
 	var winner, loser *House
 	var winnerHits, loserHits int
@@ -309,7 +345,7 @@ func RunBattle(attackingHouse *House, defendingHouse *House) int {
 	// TODO: Print advantages?
 	fmt.Printf(
 		"%s[%d/%d hits] defeated %s[%d/%d hits]!\n",
-		winner.GetTitle(), winnerHits, winner.Might, loser.GetTitle(), loserHits, loser.Might,
+		winner.GetTitle(), winnerHits, winner.GetAdjustedMight(), loser.GetTitle(), loserHits, loser.GetAdjustedMight(),
 	)
 
 	// Award more glory to underdogs and less to bullies.
@@ -339,20 +375,6 @@ func RunBattle(attackingHouse *House, defendingHouse *House) int {
 	}
 
 	return attackerHits - defenderHits
-}
-
-func DisplayState() {
-	for _, house := range Game.Houses {
-		fmt.Printf("Introducing the knights of %s[might: %d]! Their banner is %s.\n", house.GetTitle(), house.Might, house.Banner)
-		for _, knight := range house.Knights {
-			fmt.Printf(
-				"%s! [prowess: %d, bravery: %d, cost: %d]\n",
-				knight.GetTitle(), knight.Prowess, knight.Bravery, knight.GetCost(),
-			)
-		}
-		fmt.Printf("\n")
-	}
-	fmt.Printf("\n===================\n\n")
 }
 
 func FindKnightByName(knightName string) *Knight {

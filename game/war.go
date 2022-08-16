@@ -30,8 +30,9 @@ func HouseWillJoinAlliance(allyHouse *House, alliance *Alliance, enemy *Alliance
 	isEnemy := allyHouse == enemy.Leader
 	isLeaderHouse := allyHouse == alliance.Leader
 	isAlliedWithEnemy := Exists(enemy.Allies, allyHouse) || Exists(otherEnemies, allyHouse)
+	alreadyInWar := allyHouse.NumWars() > 0
 	// TODO: Check across all wars not just this one.
-	if isEnemy || isLeaderHouse || isAlliedWithEnemy {
+	if isEnemy || isLeaderHouse || isAlliedWithEnemy || alreadyInWar {
 		return false
 	}
 
@@ -113,20 +114,23 @@ func CreateWar(attackerHouse *House, defenderHouse *House) *War {
 
 func StartWars() {
 	for _, house := range RandomizeOrder(Game.Houses) {
+		// Don't start a war if we're already in one.
+		alreadyInWar := house.NumWars() > 0
+		if alreadyInWar {
+			continue
+		}
+
 		for targetHouse, relationship := range house.DiplomaticRelations {
 			tensionHits := RollHits(relationship.Tension)
 
 			// TODO: The ob should probably have another factor/be higher here, otherwise weak houses get trampled.
 			// TODO: Opponent might should be in relation to your might. Subtract or divide?
-			// TODO: Start multiple wars if we need to. Make wars a bit less common.
 			if tensionHits >= targetHouse.Might + 3 {
 				war := CreateWar(house, targetHouse)
 				Game.Wars = append(Game.Wars, war)
-				return
 			}
 		}
 	}
-	fmt.Printf("\n")
 }
 
 func (war *War) DoNextBattles() {
@@ -187,7 +191,10 @@ func (war *War) EndWar() {
 		panic("tried to end war when it wasn't over.")
 	}
 
-	// TODO: Destroy houses that lose with might of 1.
+	// NOTE: We need to remove the war first so it doesn't get removed again
+	// if the losing house gets destroyed.
+	Game.Wars = RemoveItem(Game.Wars, war)
+
 	attackLeader := war.Attackers.Leader
 	defenseLeader := war.Defenders.Leader
 
@@ -218,7 +225,7 @@ func GiveWarRewards(winner *Alliance, loser *Alliance) {
 			"%s surrenders the war to %s. %s's might increases by 1. %s is crippled by the defeat and their house falls out of power.\n",
 			loser.Leader.GetTitle(), winner.Leader.GetTitle(), winner.Leader.GetTitle(), loser.Leader.GetTitle(),
 		)
-		RemoveHouse(loser.Leader)
+		DestroyHouse(loser.Leader)
 		newHouse := GenerateHouse()
 		fmt.Printf("%s rises to power.\n\n", newHouse.GetTitle())
 	} else {

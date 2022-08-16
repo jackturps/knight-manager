@@ -22,8 +22,9 @@ func main() {
 		"glory to Them by sponsoring knights of the great houses, and having those knights " +
 		"see success in battle. Of course, good knights do not come cheap - but if their " +
 		"house falls on hard times bargains may present themselves. Be warned, a dead " +
-		"knight knows no glory.\n\nThe church provides you 5 coin per season to sponsor " +
-		"knights. Spend it wisely.\n\n",
+		"knight knows no glory.\n\nWhen sponsored knights die their house will pay the church " +
+		"a customary funeral tithe. Wealthier houses are more generous in their offering to the gods. " +
+		"Spend it wisely.\n\n",
 	)
 
 	game.Game = &game.GameState{}
@@ -33,16 +34,14 @@ func main() {
 	game.GenerateWorld()
 
 	game.Game.Player = &game.GloryBishop{
-		Coin: 15,
+		Coin: 30,
 		Glory: 0,
 	}
 
 	knightedHouseIdx := game.RandomRange(0, len(game.Game.Houses))
-	numNewKnightsPerSeason := 3
-	//numBattlesPerSeason := 3
+	numNewKnightsPerSeason := 2
 
 	for {
-		game.DisplayState()
 		game.DoPlayerTurn()
 
 		for idx := 0; idx < 3; idx++ {
@@ -50,26 +49,29 @@ func main() {
 		}
 		fmt.Printf("\n")
 
-		if len(game.Game.Wars) == 0 {
-			// TODO: Properly consider doing more than 1 war at a time.
-			game.StartWars()
-		}
+		// TODO: Only roll for start war after an insighting incident so every war has a cause?
+		game.StartWars()
 
 		for _, war := range game.CopySlice(game.Game.Wars) {
-			war.DoNextBattles()
+			// If a house is destroyed in another war this turn any of their other wars.
+			// will end. We should only run battles for wars that are still going.
+			if game.Exists(game.Game.Wars, war) {
+				war.DoNextBattles()
+			}
 			if war.IsOver() {
 				war.EndWar()
-				game.Game.Wars = game.RemoveItem(game.Game.Wars, war)
 			}
 		}
+		if len(game.Game.Wars) > 0 {
+			fmt.Printf("\n")
+		}
 
+		// TODO: Roll house's wealth to see who gets knights?
 		// Round robin which houses get new knights.
 		for idx := 0; idx < numNewKnightsPerSeason; idx++ {
 			house := game.Game.Houses[knightedHouseIdx]
 			game.GenerateKnight(house)
 			knightedHouseIdx = (knightedHouseIdx + 1) % len(game.Game.Houses)
 		}
-
-		game.Game.Player.Coin += 5
 	}
 }

@@ -34,7 +34,6 @@ type Knight struct {
 func NewKnight(name string, gender Gender, prowess int, bravery int, house *House, sponsor *GloryBishop) *Knight {
 	knight := &Knight{
 		Name:          name,
-		// TODO: Get a list of male names and make it possible to be a man.
 		Gender:		   gender,
 		Prowess:       prowess,
 		Bravery:	   bravery,
@@ -46,6 +45,23 @@ func NewKnight(name string, gender Gender, prowess int, bravery int, house *Hous
 		AssignKnightToHouse(knight, house)
 	}
 	return knight
+}
+
+func KillKnight(knight *Knight) {
+	if knight.Sponsor != nil {
+		titheAmount := 10 + (5 * knight.House.Wealth)
+		fmt.Printf(
+			"%s paid %d coin in customary funeral tithes for %s.\n",
+			knight.House.GetTitle(), titheAmount, knight.GetTitle(),
+		)
+		knight.Sponsor.Coin += titheAmount
+	}
+
+	knight.House.Knights = RemoveItem(knight.House.Knights, knight)
+	if knight.Sponsor != nil {
+		knight.Sponsor.SponsoredKnights = RemoveItem(knight.Sponsor.SponsoredKnights, knight)
+	}
+	Game.Knights = RemoveItem(Game.Knights, knight)
 }
 
 // GetRecentReputation returns a knights reputation based on

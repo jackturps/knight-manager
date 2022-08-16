@@ -24,6 +24,7 @@ var WorldEvents = []WorldEventFunc{
 	func() { HouseAnnoysHouseEvent("A %s noble killed a %s noble in a duel.", 2) },
 	func() { HouseAnnoysHouseEvent("A %s noble started a brawl with a %s noble during a feast.", 1) },
 	func() { HouseAnnoysHouseEvent("%s imposed tolls on all roads leading to %s's lands.", 1) },
+	func() { HouseAnnoysHouseEvent("%s deployed a garrison on %s's border.", 2) },
 }
 
 func DoWorldEvent() {
