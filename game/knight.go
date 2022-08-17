@@ -25,6 +25,8 @@ type Knight struct {
 	// TODO: Maybe rename to brashness?
 	Bravery int
 
+	Spouse *Knight
+
 	BattleResults []BattleResult
 
 	House   *House
@@ -37,6 +39,7 @@ func NewKnight(name string, gender Gender, prowess int, bravery int, house *Hous
 		Gender:		   gender,
 		Prowess:       prowess,
 		Bravery:	   bravery,
+		Spouse: 	   nil,
 		BattleResults: make([]BattleResult, 0),
 		House:         house,
 		Sponsor:       sponsor,
@@ -55,6 +58,11 @@ func KillKnight(knight *Knight) {
 			knight.House.GetTitle(), titheAmount, knight.GetTitle(),
 		)
 		knight.Sponsor.Coin += titheAmount
+	}
+
+	// Make their spouse a widow :(.
+	if knight.Spouse != nil {
+		knight.Spouse.Spouse = nil
 	}
 
 	knight.House.Knights = RemoveItem(knight.House.Knights, knight)

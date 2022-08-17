@@ -26,6 +26,12 @@ func ResearchKnight(knight *Knight) {
 			battleResultString += "D "
 		}
 	}
+	if knight.Spouse == nil {
+		fmt.Printf("%s is unmarried.\n", knight.GetTitle())
+	} else {
+		fmt.Printf("%s is married to %s.\n", knight.GetTitle(), knight.Spouse.GetTitle())
+	}
+
 	fmt.Printf(
 		"%s has fought in %d battles, their results are: %s\n",
 		knight.GetTitle(), len(knight.BattleResults), battleResultString,
@@ -135,6 +141,24 @@ func DoPlayerTurn() {
 
 				fmt.Printf("\n")
 			}
+		} else if command[0] == "marry" {
+			if len(command) < 3 {
+				fmt.Printf("Specify knights to marry(marry <first-name> <first-name>)\n")
+				continue
+			}
+
+			knight1 := FindKnightByName(command[1])
+			if knight1 == nil {
+				fmt.Printf("Could not find knight '%s'\n", command[1])
+				continue
+			}
+			knight2 := FindKnightByName(command[2])
+			if knight2 == nil {
+				fmt.Printf("Could not find knight '%s'\n", command[2])
+				continue
+			}
+
+			MarryKnights(knight1, knight2)
 		}
 	}
 }

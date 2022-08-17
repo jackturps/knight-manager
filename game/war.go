@@ -26,6 +26,22 @@ func (alliance *Alliance) GetTotalMight() int {
 	return totalMight
 }
 
+func HouseIsInAlliance(alliance *Alliance, house *House) bool {
+	return house == alliance.Leader || Exists(alliance.Allies, house)
+}
+
+func HousesAreAtWar(house1 *House, house2 *House) bool {
+	for _, war := range Game.Wars {
+		if HouseIsInAlliance(war.Attackers, house1) && HouseIsInAlliance(war.Defenders, house2) {
+			return true
+		}
+		if HouseIsInAlliance(war.Attackers, house2) && HouseIsInAlliance(war.Defenders, house1) {
+			return true
+		}
+	}
+	return false
+}
+
 func HouseWillJoinAlliance(allyHouse *House, alliance *Alliance, enemy *Alliance, otherEnemies []*House) bool {
 	isEnemy := allyHouse == enemy.Leader
 	isLeaderHouse := allyHouse == alliance.Leader
