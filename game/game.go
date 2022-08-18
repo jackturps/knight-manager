@@ -272,65 +272,73 @@ func RunBattle(attackingHouse *House, defendingHouse *House) int {
 
 	// NOTE: Maybe battles could have multiple "fronts" and we'd have a champion per front.
 	// number of fronts could depend on the terrain or some other factor?
-	attackingChampion := ChooseHouseChampion(attackingHouse)
-	defendingChampion := ChooseHouseChampion(defendingHouse)
+	attackingKnight := ChooseHouseChampion(attackingHouse)
+	defendingKnight := ChooseHouseChampion(defendingHouse)
 
-	if attackingChampion == nil && defendingChampion == nil {
+	if attackingKnight == nil && defendingKnight == nil {
 		fmt.Printf("Neither house could field a champion!\n")
-	} else if attackingChampion == nil {
+	} else if attackingKnight == nil {
 		defenderAdvantage = 1
 		fmt.Printf("%s could not field a champion, giving %s a tactical edge!\n", attackingHouse.GetTitle(), defendingHouse.GetTitle())
-	} else if defendingChampion == nil {
+	} else if defendingKnight == nil {
 		attackerAdvantage = 1
 		fmt.Printf("%s could not field a champion, giving %s a tactical edge!\n", defendingHouse.GetTitle(), attackingHouse.GetTitle())
 	} else {
-		attackerHits := RollHits(attackingChampion.Prowess)
-		defenderHits := RollHits(defendingChampion.Prowess)
+		attackerHits := RollHits(attackingKnight.Prowess + attackingKnight.Blessings)
+		defenderHits := RollHits(defendingKnight.Prowess + defendingKnight.Blessings)
 		// TODO: Maybe only kill if the margin is big enough.
 		// TODO: Award glory to victorious champions.
 		if attackerHits == defenderHits {
 			fmt.Printf(
-				"%s met %s on the battlefield, their duel raged until it met a stalemate[%d/%d vs %d/%d]!\n",
-				attackingChampion.GetTitle(), defendingChampion.GetTitle(),
-				attackerHits, attackingChampion.Prowess,
-				defenderHits, defendingChampion.Prowess,
+				"%s met %s on the battlefield, their duel raged until it met a stalemate[%d/%dd+%dd vs %d/%dd+%dd]!\n",
+				attackingKnight.GetTitle(), defendingKnight.GetTitle(),
+				attackerHits, attackingKnight.Prowess, attackingKnight.Blessings,
+				defenderHits, defendingKnight.Prowess, defendingKnight.Blessings,
 			)
 		} else if attackerHits > defenderHits {
 			// TODO: Reduce duplication between here and below.
 			fmt.Printf(
-				"%s slayed %s on the battlefield after an intense duel[%d/%d vs %d/%d], giving %s a tactical edge!\n",
-				attackingChampion.GetTitle(), defendingChampion.GetTitle(),
-				attackerHits, attackingChampion.Prowess,
-				defenderHits, defendingChampion.Prowess,
+				"%s slayed %s on the battlefield after an intense duel[%d/%dd+%dd vs %d/%dd+%dd], giving %s a tactical edge!\n",
+				attackingKnight.GetTitle(), defendingKnight.GetTitle(),
+				attackerHits, attackingKnight.Prowess, attackingKnight.Blessings,
+				defenderHits, defendingKnight.Prowess, defendingKnight.Blessings,
 				attackingHouse.GetTitle(),
 			)
 
-			if attackingChampion.Sponsor != nil {
-				glory := int(5 * float64(defendingChampion.Prowess) * defendingChampion.GetRecentReputation())
+			if attackingKnight.Sponsor != nil {
+				glory := int(5 * float64(defendingKnight.Prowess) * defendingKnight.GetRecentReputation())
 				Game.Player.Glory += glory
-				fmt.Printf("The Church earned %d glory for sponsoring %s.\n", glory, attackingChampion.GetTitle())
+				fmt.Printf("The Church earned %d glory for sponsoring %s.\n", glory, attackingKnight.GetTitle())
 			}
 
 			attackerAdvantage = 1
-			KillKnight(defendingChampion)
+			KillKnight(defendingKnight)
 		} else {
 			fmt.Printf(
-				"%s slayed %s on the battlefield after an intense duel[%d/%d vs %d/%d], giving %s a tactical edge!\n",
-				defendingChampion.GetTitle(), attackingChampion.GetTitle(),
-				defenderHits, defendingChampion.Prowess,
-				attackerHits, attackingChampion.Prowess,
+				"%s slayed %s on the battlefield after an intense duel[%d/%dd+%dd vs %d/%dd+%dd], giving %s a tactical edge!\n",
+				defendingKnight.GetTitle(), attackingKnight.GetTitle(),
+				defenderHits, defendingKnight.Prowess, defendingKnight.Blessings,
+				attackerHits, attackingKnight.Prowess, attackingKnight.Blessings,
 				defendingHouse.GetTitle(),
 			)
 
-			if defendingChampion.Sponsor != nil {
-				glory := int(5 * float64(attackingChampion.Prowess) * attackingChampion.GetRecentReputation())
+			if defendingKnight.Sponsor != nil {
+				glory := int(5 * float64(attackingKnight.Prowess) * attackingKnight.GetRecentReputation())
 				Game.Player.Glory += glory
-				fmt.Printf("The Church earned %d glory for sponsoring %s. You're sponsorships have earned the church %d glory in total.\n", glory, defendingChampion.GetTitle(), Game.Player.Glory)
+				fmt.Printf("The Church earned %d glory for sponsoring %s.\n", glory, defendingKnight.GetTitle())
 			}
 
 			defenderAdvantage = 1
-			KillKnight(attackingChampion)
+			KillKnight(attackingKnight)
 		}
+	}
+
+	// Blessings only last one fight.
+	if attackingKnight != nil {
+		attackingKnight.Blessings = 0
+	}
+	if defendingKnight != nil {
+		defendingKnight.Blessings = 0
 	}
 
 	attackerHits := RollHits(attackingHouse.GetAdjustedMight() + attackerAdvantage)
@@ -346,7 +354,7 @@ func RunBattle(attackingHouse *House, defendingHouse *House) int {
 	}
 	// TODO: Print advantages?
 	fmt.Printf(
-		"%s[%d/%d hits] defeated %s[%d/%d hits]!\n",
+		"%s[%d/%dd hits] defeated %s[%d/%dd hits]!\n",
 		winner.GetTitle(), winnerHits, winner.GetAdjustedMight(), loser.GetTitle(), loserHits, loser.GetAdjustedMight(),
 	)
 
@@ -357,7 +365,7 @@ func RunBattle(attackingHouse *House, defendingHouse *House) int {
 		knight.BattleResults = append(knight.BattleResults, Victory)
 		if knight.Sponsor != nil {
 			Game.Player.Glory += glory
-			fmt.Printf("The Church earned %d glory for sponsoring %s. You're sponsorships have earned the church %d glory in total.\n", glory, knight.GetTitle(), Game.Player.Glory)
+			fmt.Printf("The Church earned %d glory for sponsoring %s.\n", glory, knight.GetTitle())
 		}
 	}
 
@@ -370,7 +378,7 @@ func RunBattle(attackingHouse *House, defendingHouse *House) int {
 		survivalHits := RollHits(knight.Prowess)
 		if survivalHits < defeatSeverity {
 			fmt.Printf(
-				"%s was overwhelmed by the enemy forces and killed[%d/%d vs %d]\n",
+				"%s was overwhelmed by the enemy forces and killed[%d/%dd vs %d]\n",
 				knight.GetTitle(), survivalHits, knight.Prowess, defeatSeverity,
 			)
 			KillKnight(knight)

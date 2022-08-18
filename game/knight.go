@@ -25,7 +25,10 @@ type Knight struct {
 	// TODO: Maybe rename to brashness?
 	Bravery int
 
-	Spouse *Knight
+	Spouse   *Knight
+
+	Blessings int
+	IsChosen bool
 
 	BattleResults []BattleResult
 
@@ -36,10 +39,11 @@ type Knight struct {
 func NewKnight(name string, gender Gender, prowess int, bravery int, house *House, sponsor *GloryBishop) *Knight {
 	knight := &Knight{
 		Name:          name,
-		Gender:		   gender,
+		Gender:        gender,
 		Prowess:       prowess,
-		Bravery:	   bravery,
-		Spouse: 	   nil,
+		Bravery:       bravery,
+		Spouse:        nil,
+		IsChosen:      false,
 		BattleResults: make([]BattleResult, 0),
 		House:         house,
 		Sponsor:       sponsor,
@@ -115,9 +119,17 @@ func (knight *Knight) GetTitle() string {
 		genderedTitle = "Lady"
 	}
 
-	title := fmt.Sprintf("%s %s %s", genderedTitle, knight.Name, knight.House.Name)
+	blessedTitle := ""
+	if knight.Blessings > 0 {
+		blessedTitle = " the Blessed"
+	}
+
+	title := fmt.Sprintf("%s %s %s%s", genderedTitle, knight.Name, knight.House.Name, blessedTitle)
 	if knight.Sponsor != nil {
 		title = ColouredText(GreenTextCode, title)
+	}
+	if knight.IsChosen {
+		title = ColouredText(BlueBackgroundCode, title)
 	}
 	return title
 }

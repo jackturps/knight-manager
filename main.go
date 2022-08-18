@@ -24,7 +24,9 @@ func main() {
 		"house falls on hard times bargains may present themselves. Be warned, a dead " +
 		"knight knows no glory.\n\nWhen sponsored knights die their house will pay the church " +
 		"a customary funeral tithe. Wealthier houses are more generous in their offering to the gods. " +
-		"Spend it wisely.\n\n",
+		"Spend it wisely.\n\nIn addition to your public duties, the church also has a hidden agenda. " +
+		"The prophets speak of a new Mesiah amongst the ranks of the great houses. They have seen " +
+		"many possible faces in the flames. Ensure at least one of the chosen knights make it to year 50.\n\n",
 	)
 
 	game.Game = &game.GameState{}
@@ -41,9 +43,30 @@ func main() {
 	knightedHouseIdx := game.RandomRange(0, len(game.Game.Houses))
 	numNewKnightsPerSeason := 2
 
+
+	var bestKnight, worstKnight, randomKnight *game.Knight
+	for _, knight := range game.Game.Knights {
+		if bestKnight == nil ||
+			(knight.Prowess > bestKnight.Prowess) ||
+			(knight.Prowess == bestKnight.Prowess && knight.House.Might > bestKnight.House.Might) {
+			bestKnight = knight
+		}
+
+		if worstKnight == nil ||
+			(knight.Prowess < worstKnight.Prowess) ||
+			(knight.Prowess == worstKnight.Prowess && knight.House.Might < worstKnight.House.Might) {
+			worstKnight = knight
+		}
+	}
+	possibleKnights := game.RemoveItem(game.RemoveItem(game.Game.Knights, bestKnight), worstKnight)
+	randomKnight = game.RandomSelect(possibleKnights)
+
+	bestKnight.IsChosen = true
+	worstKnight.IsChosen = true
+	randomKnight.IsChosen = true
+
 	for {
 		game.Game.Cycle++
-
 		game.DoPlayerTurn()
 
 		for idx := 0; idx < 3; idx++ {
@@ -74,6 +97,26 @@ func main() {
 			house := game.Game.Houses[knightedHouseIdx]
 			game.GenerateKnight(house)
 			knightedHouseIdx = (knightedHouseIdx + 1) % len(game.Game.Houses)
+		}
+
+		remainingChosen := 0
+		for _, knight := range game.Game.Knights {
+			if knight.IsChosen {
+				remainingChosen++
+			}
+		}
+		if remainingChosen == 0 {
+			fmt.Printf(
+				"All possible Mesiahs have died or been stripped of their nobility. You are cast " +
+				"out from the church.\n",
+			)
+			break
+		}
+
+		if game.Game.Cycle == 50 {
+			fmt.Printf(
+				"You protected the mesiah(s)!!! %d STAR VICTORY!!!\n", remainingChosen,
+			)
 		}
 	}
 }

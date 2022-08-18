@@ -164,6 +164,7 @@ func DoPlayerTurn() {
 		} else if command[0] == "houses" {
 			DisplayHouses()
 		} else if command[0] == "wars" {
+			// TODO: Show which houses will battle next.
 			for _, war := range Game.Wars {
 				attacker := war.Attackers.Leader
 				defender := war.Defenders.Leader
@@ -202,6 +203,29 @@ func DoPlayerTurn() {
 			MarryKnights(knight1, knight2)
 		} else if command[0] == "tensions" {
 			DisplayDiplomacy()
+		} else if command[0] == "bless" {
+			if len(command) < 2 {
+				fmt.Printf("Specify knight to bless(bless <first-name>)\n")
+				continue
+			}
+			knight := FindKnightByName(command[1])
+			if knight == nil {
+				fmt.Printf("Could not find knight '%s'\n", command[1])
+				continue
+			}
+
+			gloryCost := (knight.Blessings + 1) * 10
+			if Game.Player.Glory < gloryCost {
+				fmt.Printf(
+					"It costs %d glory to bless %s, you have %d.\n",
+					gloryCost, knight.GetTitle(), Game.Player.Glory,
+				)
+				continue
+			}
+
+			Game.Player.Glory -= gloryCost
+			knight.Blessings++
+			fmt.Printf("%s will now have +%dd in duels.\n", knight.GetTitle(), knight.Blessings)
 		}
 	}
 }
