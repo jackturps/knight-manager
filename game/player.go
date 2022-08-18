@@ -62,6 +62,61 @@ func DisplayHouses() {
 	}
 }
 
+func DisplayWars() {
+	for _, war := range Game.Wars {
+		w := tabwriter.NewWriter(os.Stdout, 1, 1, 1, ' ', 0)
+		fmt.Fprintf(
+			w, "Turn\tAttackers[morale: %d]\tDefenders[morale: %d]\n",
+			war.Attackers.Morale, war.Defenders.Morale,
+		)
+
+		attacker := war.Attackers.Leader
+		defender := war.Defenders.Leader
+
+		turnIcon := ""
+		if war.attackingHouseIdx == 0 {
+			turnIcon = "*"
+		}
+
+		fmt.Fprintf(
+			w,"%s\t%s[might: %d]\t%s[might: %d]\n",
+			turnIcon,
+			attacker.GetTitle(), attacker.Might,
+			defender.GetTitle(), defender.Might,
+		)
+
+		for allyIdx := 0; allyIdx < Max[int](len(war.Attackers.Allies), len(war.Defenders.Allies)); allyIdx++ {
+			if war.attackingHouseIdx - 1 == allyIdx {
+				fmt.Fprintf(w, "*\t")
+			} else {
+				fmt.Fprintf(w, "\t")
+			}
+
+			if allyIdx < len(war.Attackers.Allies) {
+				ally := war.Attackers.Allies[allyIdx]
+				fmt.Fprintf(
+					w, "%s[might: %d]\t",
+					ally.GetTitle(), ally.Might,
+				)
+			} else {
+				fmt.Fprintf(w, "\t")
+			}
+
+			if allyIdx < len(war.Defenders.Allies) {
+				ally := war.Defenders.Allies[allyIdx]
+				fmt.Fprintf(
+					w, "%s[might: %d]\n",
+					ally.GetTitle(), ally.Might,
+				)
+			} else {
+				fmt.Fprintf(w, "\n")
+			}
+		}
+		w.Flush()
+		fmt.Printf("\n")
+	}
+}
+
 func DisplayDiplomacy() {
 	tensionSeverity := []string{
 		GreenTextCode,
@@ -164,25 +219,7 @@ func DoPlayerTurn() {
 		} else if command[0] == "houses" {
 			DisplayHouses()
 		} else if command[0] == "wars" {
-			// TODO: Show which houses will battle next.
-			for _, war := range Game.Wars {
-				attacker := war.Attackers.Leader
-				defender := war.Defenders.Leader
-
-				fmt.Printf(
-					"%s[might: %d, morale: %d] is at war with %s[might: %d, morale: %d]\n",
-					attacker.GetTitle(), attacker.Might, war.Attackers.Morale,
-					defender.GetTitle(), defender.Might, war.Defenders.Morale,
-				)
-				for _, ally := range war.Attackers.Allies {
-					fmt.Printf("%s[might: %d] is allied with %s\n", ally.GetTitle(), ally.Might, attacker.GetTitle())
-				}
-				for _, ally := range war.Defenders.Allies {
-					fmt.Printf("%s[might: %d] is allied with %s\n", ally.GetTitle(), ally.Might, defender.GetTitle())
-				}
-
-				fmt.Printf("\n")
-			}
+			DisplayWars()
 		} else if command[0] == "marry" {
 			if len(command) < 3 {
 				fmt.Printf("Specify knights to marry(marry <first-name> <first-name>)\n")
