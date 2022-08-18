@@ -47,14 +47,13 @@ func main() {
 	var bestKnight, worstKnight, randomKnight *game.Knight
 	for _, knight := range game.Game.Knights {
 		if bestKnight == nil ||
-			(knight.Prowess > bestKnight.Prowess) ||
-			(knight.Prowess == bestKnight.Prowess && knight.House.Might > bestKnight.House.Might) {
+			(knight.Prowess + knight.House.Might > bestKnight.Prowess + bestKnight.House.Might) {
 			bestKnight = knight
 		}
 
 		if worstKnight == nil ||
 			(knight.Prowess < worstKnight.Prowess) ||
-			(knight.Prowess == worstKnight.Prowess && knight.House.Might < worstKnight.House.Might) {
+			(knight.Prowess + knight.House.Might < worstKnight.House.Might + worstKnight.House.Might) {
 			worstKnight = knight
 		}
 	}

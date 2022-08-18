@@ -56,7 +56,7 @@ func NewKnight(name string, gender Gender, prowess int, bravery int, house *Hous
 
 func KillKnight(knight *Knight) {
 	if knight.Sponsor != nil {
-		titheAmount := 10 + (5 * knight.House.Wealth)
+		titheAmount := 5 * knight.House.Wealth
 		fmt.Printf(
 			"%s paid %d coin in customary funeral tithes for %s.\n",
 			knight.House.GetTitle(), titheAmount, knight.GetTitle(),
