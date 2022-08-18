@@ -26,7 +26,7 @@ func main() {
 		"a customary funeral tithe. Wealthier houses are more generous in their offering to the gods. " +
 		"Spend it wisely.\n\nIn addition to your public duties, the church also has a hidden agenda. " +
 		"The prophets speak of a new Mesiah amongst the ranks of the great houses. They have seen " +
-		"many possible faces in the flames. Ensure at least one of the chosen knights make it to year 50.\n\n",
+		"many possible faces in the flames. Ensure at least one of the chosen knights make it to year 30.\n\n",
 	)
 
 	game.Game = &game.GameState{}
@@ -113,10 +113,11 @@ func main() {
 			break
 		}
 
-		if game.Game.Cycle == 50 {
+		if game.Game.Cycle == 30 {
 			fmt.Printf(
 				"You protected the mesiah(s)!!! %d STAR VICTORY!!!\n", remainingChosen,
 			)
+			break
 		}
 	}
 }

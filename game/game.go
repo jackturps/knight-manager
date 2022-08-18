@@ -334,10 +334,8 @@ func RunBattle(attackingHouse *House, defendingHouse *House) int {
 	}
 
 	// Blessings only last one fight.
-	if attackingKnight != nil {
+	if attackingKnight != nil && defendingKnight != nil {
 		attackingKnight.Blessings = 0
-	}
-	if defendingKnight != nil {
 		defendingKnight.Blessings = 0
 	}
 
