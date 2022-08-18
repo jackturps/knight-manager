@@ -62,6 +62,7 @@ func KillKnight(knight *Knight) {
 
 	// Make their spouse a widow :(.
 	if knight.Spouse != nil {
+		fmt.Printf("%s was made a widow.\n", knight.Spouse.GetTitle())
 		knight.Spouse.Spouse = nil
 	}
 
@@ -119,11 +120,4 @@ func (knight *Knight) GetTitle() string {
 		title = ColouredText(GreenTextCode, title)
 	}
 	return title
-}
-
-var GreenTextCode = "\033[92m"
-var DefaultColourCode = "\033[0m"
-
-func ColouredText(colourCode string, text string) string {
-	return fmt.Sprintf("%s%s%s", colourCode, text, DefaultColourCode)
 }

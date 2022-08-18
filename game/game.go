@@ -71,6 +71,8 @@ type GameState struct {
 
 	FemaleNameGenerator names.NameGenerator
 	MaleNameGenerator names.NameGenerator
+
+	Cycle int
 }
 
 func AssignKnightToHouse(knight *Knight, house *House) {
@@ -306,7 +308,7 @@ func RunBattle(attackingHouse *House, defendingHouse *House) int {
 			if attackingChampion.Sponsor != nil {
 				glory := int(5 * float64(defendingChampion.Prowess) * defendingChampion.GetRecentReputation())
 				Game.Player.Glory += glory
-				fmt.Printf("The Church earned %d glory for sponsoring %s. Your sponsorships have earned the church %d glory in total.\n", glory, attackingChampion.GetTitle(), Game.Player.Glory)
+				fmt.Printf("The Church earned %d glory for sponsoring %s.\n", glory, attackingChampion.GetTitle())
 			}
 
 			attackerAdvantage = 1
@@ -348,6 +350,7 @@ func RunBattle(attackingHouse *House, defendingHouse *House) int {
 		winner.GetTitle(), winnerHits, winner.GetAdjustedMight(), loser.GetTitle(), loserHits, loser.GetAdjustedMight(),
 	)
 
+	// TODO: Remove glory for winning battle? Too easy?
 	// Award more glory to underdogs and less to bullies.
 	glory := (MaxMight + 1) + (loser.Might - winner.Might)
 	for _, knight := range winner.Knights {

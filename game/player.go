@@ -4,7 +4,9 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
+	"text/tabwriter"
 )
 
 func Research(entityName string) {
@@ -60,8 +62,45 @@ func DisplayHouses() {
 	}
 }
 
+func DisplayDiplomacy() {
+	tensionSeverity := []string{
+		GreenTextCode,
+		YellowTextCode,
+		RedTextCode,
+	}
+
+	// NOTE: All fields need to be wrapped in some colour codes so they all get fucked
+	// up in the same way and the table works.
+	// TODO: Use a table that can handle coloured text.
+	w := tabwriter.NewWriter(os.Stdout, 1, 1, 1, ' ', 0)
+
+	fmt.Fprintf(w, "%s\t", ColouredText(DefaultColourCode, ""))
+	for _, house := range Game.Houses {
+		fmt.Fprintf(w, "%s\t", ColouredText(DefaultColourCode, house.Name))
+	}
+	fmt.Fprint(w, "\n")
+
+	for _, sourceHouse := range Game.Houses {
+		fmt.Fprintf(w, "%s\t", ColouredText(DefaultColourCode, sourceHouse.Name))
+		for _, targetHouse := range Game.Houses {
+			if sourceHouse == targetHouse {
+				fmt.Fprintf(w, "%s\t", ColouredText(DefaultColourCode ,"X"))
+			} else {
+				// TODO: Colour numbers on severity?
+				tension := sourceHouse.DiplomaticRelations[targetHouse].Tension
+				tensionColour := tensionSeverity[Min[int](2, tension / 3)]
+				tensionText := ColouredText(tensionColour, strconv.Itoa(tension))
+				fmt.Fprintf(w, "%s\t", tensionText)
+			}
+		}
+		fmt.Fprint(w, "\n")
+	}
+
+	w.Flush()
+}
+
 func DoPlayerTurn() {
-	fmt.Printf("You have %d coin\n", Game.Player.Coin)
+	fmt.Printf("Year %d - You have %d coin and %d glory.\n", Game.Cycle, Game.Player.Coin, Game.Player.Glory)
 
 	// Player interaction loop.
 	// TODO: For the love of god clean this up.
@@ -77,10 +116,12 @@ func DoPlayerTurn() {
 			break
 		} else if command[0] == "help" {
 			fmt.Printf(
-				"sponsor <knight-name>: pay a knight's cost in coin to sponsor them, gaining glory from their victories\n" +
-					"research <knight-name|house-name>: discover information about a knight or house\n" +
-					"houses: display information about all houses\n" +
-					"wars: display information about all in progress wars\n" +
+				"sponsor <knight-name>: pay a knight's cost in coin to sponsor them, gaining glory from their victories and coin when they die.\n" +
+					"marry <knight-name> <knight-name>: marry two knights, moving a knight from the weaker house into the stronger house. This reduces tension between the houses.\n" +
+					"research <knight-name|house-name>: discover information about a knight or house.\n" +
+					"houses: display information about all houses.\n" +
+					"wars: display information about all in progress wars.\n" +
+					"tensions: show the tensions between each of the houses.\n" +
 					"done: finalise your sponsorships for this season\n",
 			)
 		} else if command[0] == "research" {
@@ -159,6 +200,8 @@ func DoPlayerTurn() {
 			}
 
 			MarryKnights(knight1, knight2)
+		} else if command[0] == "tensions" {
+			DisplayDiplomacy()
 		}
 	}
 }

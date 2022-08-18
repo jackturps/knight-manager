@@ -80,3 +80,12 @@ func RandomizeOrder[V any] (list []V) []V {
 
 	return listCopy
 }
+
+var GreenTextCode =     "\x1b[0032m"
+var YellowTextCode =    "\x1b[0033m"
+var RedTextCode =       "\x1b[0031m"
+var DefaultColourCode = "\x1b[0000m"
+
+func ColouredText(colourCode string, text string) string {
+	return fmt.Sprintf("%s%s%s", colourCode, text, DefaultColourCode)
+}

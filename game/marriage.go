@@ -4,7 +4,6 @@ import "fmt"
 
 func MarryKnights(knight1 *Knight, knight2 *Knight) {
 	// TODO: Spend glory to marry knights.
-
 	if HousesAreAtWar(knight1.House, knight2.House) {
 		fmt.Printf(
 			"%s and %s are at war, they refuse to marry %s and %s.\n",
@@ -34,6 +33,13 @@ func MarryKnights(knight1 *Knight, knight2 *Knight) {
 		)
 		return
 	}
+
+	requiredGlory := 50
+	if Game.Player.Glory < requiredGlory {
+		fmt.Printf("Arranging a marriage costs %d glory, you only have %d.\n", requiredGlory, Game.Player.Glory)
+		return
+	}
+	Game.Player.Glory -= requiredGlory
 
 	var movingKnight, stayingKnight *Knight
 	if knight1.House.Might > knight2.House.Might {

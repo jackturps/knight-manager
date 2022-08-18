@@ -42,15 +42,14 @@ func main() {
 	numNewKnightsPerSeason := 2
 
 	for {
+		game.Game.Cycle++
+
 		game.DoPlayerTurn()
 
 		for idx := 0; idx < 3; idx++ {
 			game.DoWorldEvent()
 		}
 		fmt.Printf("\n")
-
-		// TODO: Only roll for start war after an insighting incident so every war has a cause?
-		game.StartWars()
 
 		for _, war := range game.CopySlice(game.Game.Wars) {
 			// If a house is destroyed in another war this turn any of their other wars.
@@ -65,6 +64,9 @@ func main() {
 		if len(game.Game.Wars) > 0 {
 			fmt.Printf("\n")
 		}
+
+		// TODO: Only roll for start war after an insighting incident so every war has a cause?
+		game.StartWars()
 
 		// TODO: Roll house's wealth to see who gets knights?
 		// Round robin which houses get new knights.
