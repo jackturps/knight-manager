@@ -41,6 +41,28 @@ var Hammer = &Weapon {
 	},
 }
 
+var Knife = &Weapon {
+	Type: "knife",
+	ActionVerb: "carver",
+	GetKillMessage:  func(aliveKnight *Knight, deadKnight *Knight) string {
+		return fmt.Sprintf(
+			"%s slit %s's throat",
+			aliveKnight.GetTitle(), deadKnight.GetTitle(),
+		)
+	},
+}
+
+var Axe = &Weapon {
+	Type: "great axe",
+	ActionVerb: "cleaver",
+	GetKillMessage: func(aliveKnight *Knight, deadKnight *Knight) string {
+		return fmt.Sprintf(
+			"%s beheaded %s",
+			aliveKnight.GetTitle(), deadKnight.GetTitle(),
+		)
+	},
+}
+
 var AllWeapons = []*Weapon{
-	Spear, Sword, Hammer,
+	Spear, Sword, Hammer, Knife, Axe,
 }
