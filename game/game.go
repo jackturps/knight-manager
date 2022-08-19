@@ -390,11 +390,11 @@ func RunBattle(attackingHouse *House, defendingHouse *House) int {
 		knight.BattleResults = append(knight.BattleResults, Defeat)
 
 		defeatSeverity := (winnerHits - loserHits) / 2
-		survivalHits := RollHits(knight.Prowess)
+		survivalHits := RollHits(knight.Prowess + knight.Blessings)
 		if survivalHits < defeatSeverity {
 			fmt.Printf(
-				"%s was overwhelmed by the enemy forces and killed[%d/%dd vs %d]\n",
-				knight.GetTitle(), survivalHits, knight.Prowess, defeatSeverity,
+				"%s was overwhelmed by the enemy forces and killed[%d/%dd+%dd vs %d]\n",
+				knight.GetTitle(), survivalHits, knight.Prowess, knight.Blessings, defeatSeverity,
 			)
 			KillKnight(knight)
 		}
