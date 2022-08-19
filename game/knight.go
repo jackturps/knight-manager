@@ -33,6 +33,10 @@ type Knight struct {
 
 	BattleResults []BattleResult
 
+	// SlayedKnights is a list of knights that this knight has killed.
+	SlayedKnights []*Knight
+	Nickname string
+
 	House   *House
 	Sponsor *GloryBishop
 }
@@ -47,6 +51,7 @@ func NewKnight(name string, gender Gender, prowess int, bravery int, weapon *Wea
 		Spouse:        nil,
 		IsChosen:      false,
 		BattleResults: make([]BattleResult, 0),
+		SlayedKnights: make([]*Knight, 0),
 		House:         house,
 		Sponsor:       sponsor,
 	}
@@ -121,12 +126,18 @@ func (knight *Knight) GetTitle() string {
 		genderedTitle = "Lady"
 	}
 
-	blessedTitle := ""
+	extraTitles := ""
+	if knight.Nickname != "" {
+		extraTitles = fmt.Sprintf(" %s", knight.Nickname)
+	}
 	if knight.Blessings > 0 {
-		blessedTitle = " the Blessed"
+		extraTitles = fmt.Sprintf(" Blessed%s", extraTitles)
+	}
+	if extraTitles != "" {
+		extraTitles = fmt.Sprintf(" the%s", extraTitles)
 	}
 
-	title := fmt.Sprintf("%s %s %s%s", genderedTitle, knight.Name, knight.House.Name, blessedTitle)
+	title := fmt.Sprintf("%s %s %s%s", genderedTitle, knight.Name, knight.House.Name, extraTitles)
 	if knight.Sponsor != nil {
 		title = ColouredText(GreenTextCode, title)
 	}

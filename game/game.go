@@ -13,9 +13,33 @@ type DiplomaticRelation struct {
 	Tension int
 }
 
+type Banner struct {
+	Symbol string
+	Color string
+	Adjective string
+}
+
+func (banner *Banner) GetDescription() string {
+	var description string
+	if banner.Adjective == "" {
+		description = fmt.Sprintf("%s %s", banner.Color, banner.Symbol)
+	} else {
+		description = fmt.Sprintf("%s %s %s", banner.Adjective, banner.Color, banner.Symbol)
+	}
+
+	startsWithVowel := strings.Contains("aeiou", description[0:1])
+	if startsWithVowel {
+		description = fmt.Sprintf("an %s", description)
+	} else {
+		description = fmt.Sprintf("a %s", description)
+	}
+
+	return description
+}
+
 type House struct {
 	Name string
-	Banner string
+	Banner Banner
 
 	/**
 	 * Make these values getters so they can be derived from other systems in the future
@@ -180,13 +204,14 @@ func GenerateKnight(house *House) {
 	Game.Knights = append(Game.Knights, knight)
 }
 
-func GenerateBanner() string {
+func GenerateBanner() Banner {
 	// TODO: Move these to input files or something.
 	symbols := []string{
 		"stag", "wolf", "crab", "crow", "lion", "elephant", "snake", "cross", "heart", "arrow", "ship", "rose", "sword",
-		"hanged man", "wheel", "octopus", "horse", "star", "fist", "sunrise", "star", "crescent moon", "beaver",
+		"hanged man", "wheel", "octopus", "horse", "star", "fist", "sunrise", "sunset", "star", "moon", "beaver",
 		"sparrow", "eagle", "chain", "spear", "shield", "apple", "raindrop", "cloud", "lightning bolt", "crystal",
-		"demon", "angel", "dragon", "griffin", "unicorn", "hydra", "bull", "goat", "sheep",
+		"demon", "angel", "dragon", "griffin", "unicorn", "hydra", "bull", "goat", "sheep", "mouse", "rat", "skull",
+		"goblet", "hammer", "anvil", "mountain", "tower", "lake", "wave", "salmon", "trout",
 	}
 	colours := []string {
 		"crimson", "aqua", "light grey", "dark grey", "black", "white", "pink", "golden", "yellow", "blue", "red",
@@ -194,29 +219,24 @@ func GenerateBanner() string {
 	}
 	adjectives := []string {
 		"flaming", "submerged", "bloody", "crowned", "upside down", "striped", "spotted", "mirrored", "frozen",
-		"shattered",
+		"shattered", "crumbling",
 	}
 
 	// TODO: This could be made simpler with a tracery grammar.
 	// Combine parts of banner.
 	symbol := RandomSelect(symbols)
 	colour := RandomSelect(colours)
+	adjective := ""
 	shouldUseAdjective := RandomRange(0, 5) == 0
-	var banner string
 	if shouldUseAdjective {
-		adjective := RandomSelect(adjectives)
-		banner = fmt.Sprintf("%s %s %s", adjective, colour, symbol)
-	} else {
-		banner = fmt.Sprintf("%s %s", colour, symbol)
+		adjective = RandomSelect(adjectives)
 	}
 
-	startsWithVowel := strings.Contains("aeiou", banner[0:1])
-	if startsWithVowel {
-		banner = fmt.Sprintf("an %s", banner)
-	} else {
-		banner = fmt.Sprintf("a %s", banner)
+	return Banner{
+		Symbol: symbol,
+		Color: colour,
+		Adjective: adjective,
 	}
-	return banner
 }
 
 // Given a certain rating randomly determine the number of success. Effectively
@@ -326,6 +346,7 @@ func RunBattle(attackingHouse *House, defendingHouse *House) int {
 			}
 
 			KillKnight(loser)
+			winner.SlayedKnights = append(winner.SlayedKnights, loser)
 		}
 	}
 
@@ -399,6 +420,32 @@ func FindHouseByName(houseName string) *House {
 		}
 	}
 	return nil
+}
+
+func CheckForNicknames() {
+	for _, knight := range Game.Knights {
+		if knight.Nickname != "" {
+			continue
+		}
+
+		housesKillCount := make(map[*House]int)
+		for _, slayedKnight := range knight.SlayedKnights {
+			if _, exist := housesKillCount[slayedKnight.House]; !exist {
+				housesKillCount[slayedKnight.House] = 0
+			}
+			housesKillCount[slayedKnight.House]++
+
+			if housesKillCount[slayedKnight.House] == 3 {
+				nickname := fmt.Sprintf(
+					"%s %s", slayedKnight.House.Banner.Symbol, knight.Weapon.ActionVerb,
+				)
+				nickname = strings.Title(nickname)
+				fmt.Printf("Soldiers have dubbed %s the %s\n", knight.GetTitle(), nickname)
+				knight.Nickname = nickname
+				break
+			}
+		}
+	}
 }
 
 var Game *GameState

@@ -41,6 +41,18 @@ func ResearchKnight(knight *Knight) {
 		"%s has fought in %d battles, their results are: %s\n",
 		knight.GetTitle(), len(knight.BattleResults), battleResultString,
 	)
+
+	slayedKnightsText := ""
+	isFirstSlayedKnight := true
+	for _, slayedKnight := range knight.SlayedKnights {
+		if !isFirstSlayedKnight {
+			slayedKnightsText += ", "
+		}
+		isFirstSlayedKnight = false
+		slayedKnightsText += slayedKnight.GetTitle()
+	}
+
+	fmt.Printf("%s has killed %d knight(s) in battles: %s\n", knight.GetTitle(), len(knight.SlayedKnights), slayedKnightsText)
 }
 
 func ResearchHouse(house *House) {
@@ -54,7 +66,7 @@ func ResearchHouse(house *House) {
 
 func DisplayHouses() {
 	for _, house := range Game.Houses {
-		fmt.Printf("Introducing the knights of %s[might: %d, wealth: %d]! Their banner is %s.\n", house.GetTitle(), house.Might, house.Wealth, house.Banner)
+		fmt.Printf("Introducing the knights of %s[might: %d, wealth: %d]! Their banner is %s.\n", house.GetTitle(), house.Might, house.Wealth, house.Banner.GetDescription())
 		for _, knight := range house.Knights {
 			fmt.Printf(
 				"%s! [prowess: %d, bravery: %d, cost: %d]\n",

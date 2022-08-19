@@ -87,6 +87,8 @@ func main() {
 			fmt.Printf("\n")
 		}
 
+		game.CheckForNicknames()
+
 		// TODO: Only roll for start war after an insighting incident so every war has a cause?
 		game.StartWars()
 
