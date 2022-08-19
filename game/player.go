@@ -28,6 +28,9 @@ func ResearchKnight(knight *Knight) {
 			battleResultString += "D "
 		}
 	}
+
+	fmt.Printf("%s fights with a %s\n", knight.GetTitle(), knight.Weapon.Type)
+
 	if knight.Spouse == nil {
 		fmt.Printf("%s is unmarried.\n", knight.GetTitle())
 	} else {

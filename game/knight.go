@@ -24,6 +24,7 @@ type Knight struct {
 	Prowess int
 	// TODO: Maybe rename to brashness?
 	Bravery int
+	Weapon *Weapon
 
 	Spouse   *Knight
 
@@ -36,12 +37,13 @@ type Knight struct {
 	Sponsor *GloryBishop
 }
 
-func NewKnight(name string, gender Gender, prowess int, bravery int, house *House, sponsor *GloryBishop) *Knight {
+func NewKnight(name string, gender Gender, prowess int, bravery int, weapon *Weapon, house *House, sponsor *GloryBishop) *Knight {
 	knight := &Knight{
 		Name:          name,
 		Gender:        gender,
 		Prowess:       prowess,
 		Bravery:       bravery,
+		Weapon:        weapon,
 		Spouse:        nil,
 		IsChosen:      false,
 		BattleResults: make([]BattleResult, 0),

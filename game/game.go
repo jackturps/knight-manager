@@ -172,6 +172,7 @@ func GenerateKnight(house *House) {
 	knight := NewKnight(
 		name, gender,
 		RandomRange(1, 6), RandomRange(1, 6),
+		RandomSelect(AllWeapons),
 		house,
 		nil,
 	)
@@ -298,8 +299,8 @@ func RunBattle(attackingHouse *House, defendingHouse *House) int {
 		} else if attackerHits > defenderHits {
 			// TODO: Reduce duplication between here and below.
 			fmt.Printf(
-				"%s slayed %s on the battlefield after an intense duel[%d/%dd+%dd vs %d/%dd+%dd], giving %s a tactical edge!\n",
-				attackingKnight.GetTitle(), defendingKnight.GetTitle(),
+				"%s after an intense duel[%d/%dd+%dd vs %d/%dd+%dd], giving %s a tactical edge!\n",
+				attackingKnight.Weapon.GetKillMessage(attackingKnight, defendingKnight),
 				attackerHits, attackingKnight.Prowess, attackingKnight.Blessings,
 				defenderHits, defendingKnight.Prowess, defendingKnight.Blessings,
 				attackingHouse.GetTitle(),
@@ -315,8 +316,8 @@ func RunBattle(attackingHouse *House, defendingHouse *House) int {
 			KillKnight(defendingKnight)
 		} else {
 			fmt.Printf(
-				"%s slayed %s on the battlefield after an intense duel[%d/%dd+%dd vs %d/%dd+%dd], giving %s a tactical edge!\n",
-				defendingKnight.GetTitle(), attackingKnight.GetTitle(),
+				"%s after an intense duel[%d/%dd+%dd vs %d/%dd+%dd], giving %s a tactical edge!\n",
+				defendingKnight.Weapon.GetKillMessage(defendingKnight, attackingKnight),
 				defenderHits, defendingKnight.Prowess, defendingKnight.Blessings,
 				attackerHits, attackingKnight.Prowess, attackingKnight.Blessings,
 				defendingHouse.GetTitle(),
