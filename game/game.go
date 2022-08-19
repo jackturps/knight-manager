@@ -287,8 +287,12 @@ func RunBattle(attackingHouse *House, defendingHouse *House) int {
 	} else {
 		attackerHits := RollHits(attackingKnight.Prowess + attackingKnight.Blessings)
 		defenderHits := RollHits(defendingKnight.Prowess + defendingKnight.Blessings)
+
+		var winner, loser *Knight
+		var winnerHits, loserHits int
+
+		// TODO: Split up duels and battles into their own functions.
 		// TODO: Maybe only kill if the margin is big enough.
-		// TODO: Award glory to victorious champions.
 		if attackerHits == defenderHits {
 			fmt.Printf(
 				"%s met %s on the battlefield, their duel raged until it met a stalemate[%d/%dd+%dd vs %d/%dd+%dd]!\n",
@@ -296,41 +300,32 @@ func RunBattle(attackingHouse *House, defendingHouse *House) int {
 				attackerHits, attackingKnight.Prowess, attackingKnight.Blessings,
 				defenderHits, defendingKnight.Prowess, defendingKnight.Blessings,
 			)
-		} else if attackerHits > defenderHits {
-			// TODO: Reduce duplication between here and below.
-			fmt.Printf(
-				"%s after an intense duel[%d/%dd+%dd vs %d/%dd+%dd], giving %s a tactical edge!\n",
-				attackingKnight.Weapon.GetKillMessage(attackingKnight, defendingKnight),
-				attackerHits, attackingKnight.Prowess, attackingKnight.Blessings,
-				defenderHits, defendingKnight.Prowess, defendingKnight.Blessings,
-				attackingHouse.GetTitle(),
-			)
-
-			if attackingKnight.Sponsor != nil {
-				glory := int(5 * float64(defendingKnight.Prowess) * defendingKnight.GetRecentReputation())
-				Game.Player.Glory += glory
-				fmt.Printf("The Church earned %d glory for sponsoring %s.\n", glory, attackingKnight.GetTitle())
-			}
-
-			attackerAdvantage = 1
-			KillKnight(defendingKnight)
 		} else {
-			fmt.Printf(
-				"%s after an intense duel[%d/%dd+%dd vs %d/%dd+%dd], giving %s a tactical edge!\n",
-				defendingKnight.Weapon.GetKillMessage(defendingKnight, attackingKnight),
-				defenderHits, defendingKnight.Prowess, defendingKnight.Blessings,
-				attackerHits, attackingKnight.Prowess, attackingKnight.Blessings,
-				defendingHouse.GetTitle(),
-			)
-
-			if defendingKnight.Sponsor != nil {
-				glory := int(5 * float64(attackingKnight.Prowess) * attackingKnight.GetRecentReputation())
-				Game.Player.Glory += glory
-				fmt.Printf("The Church earned %d glory for sponsoring %s.\n", glory, defendingKnight.GetTitle())
+			if attackerHits > defenderHits {
+				attackerAdvantage = 1
+				winner, loser = attackingKnight, defendingKnight
+				winnerHits, loserHits = attackerHits, defenderHits
+			} else {
+				defenderAdvantage = 1
+				winner, loser = defendingKnight, attackingKnight
+				winnerHits, loserHits = defenderHits, attackerHits
 			}
 
-			defenderAdvantage = 1
-			KillKnight(attackingKnight)
+			fmt.Printf(
+				"%s after an intense duel[%d/%dd+%dd vs %d/%dd+%dd], giving %s a tactical edge!\n",
+				winner.Weapon.GetKillMessage(winner, loser),
+				winnerHits, winner.Prowess, winner.Blessings,
+				loserHits, loser.Prowess, loser.Blessings,
+				winner.House.GetTitle(),
+			)
+
+			if winner.Sponsor != nil {
+				glory := int(5 * float64(loser.Prowess) * loser.GetRecentReputation())
+				Game.Player.Glory += glory
+				fmt.Printf("The Church earned %d glory for sponsoring %s.\n", glory, winner.GetTitle())
+			}
+
+			KillKnight(loser)
 		}
 	}
 
