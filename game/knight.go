@@ -17,6 +17,13 @@ const (
 	Female
 )
 
+type ChurchObjective = int
+const (
+	Kill ChurchObjective = iota
+	Protect
+	None
+)
+
 type Knight struct {
 	Name string
 	Gender Gender
@@ -28,8 +35,8 @@ type Knight struct {
 
 	Spouse   *Knight
 
-	Blessings int
-	IsChosen bool
+	Blessings       int
+	ChurchObjective ChurchObjective
 
 	BattleResults []BattleResult
 
@@ -43,17 +50,17 @@ type Knight struct {
 
 func NewKnight(name string, gender Gender, prowess int, bravery int, weapon *Weapon, house *House, sponsor *GloryBishop) *Knight {
 	knight := &Knight{
-		Name:          name,
-		Gender:        gender,
-		Prowess:       prowess,
-		Bravery:       bravery,
-		Weapon:        weapon,
-		Spouse:        nil,
-		IsChosen:      false,
-		BattleResults: make([]BattleResult, 0),
-		SlayedKnights: make([]*Knight, 0),
-		House:         house,
-		Sponsor:       sponsor,
+		Name:            name,
+		Gender:          gender,
+		Prowess:         prowess,
+		Bravery:         bravery,
+		Weapon:          weapon,
+		Spouse:          nil,
+		ChurchObjective: None,
+		BattleResults:   make([]BattleResult, 0),
+		SlayedKnights:   make([]*Knight, 0),
+		House:           house,
+		Sponsor:         sponsor,
 	}
 	if house != nil {
 		AssignKnightToHouse(knight, house)
@@ -141,8 +148,10 @@ func (knight *Knight) GetTitle() string {
 	if knight.Sponsor != nil {
 		title = ColouredText(GreenTextCode, title)
 	}
-	if knight.IsChosen {
+	if knight.ChurchObjective == Protect {
 		title = ColouredText(BlueBackgroundCode, title)
+	} else if knight.ChurchObjective == Kill {
+		title = ColouredText(RedBackgroundCode, title)
 	}
 	return title
 }

@@ -5,6 +5,7 @@ import (
 	"knightmanager/game"
 	"knightmanager/names"
 	"math/rand"
+	"sort"
 	"time"
 )
 
@@ -23,10 +24,13 @@ func main() {
 		"see success in battle. Of course, good knights do not come cheap - but if their " +
 		"house falls on hard times bargains may present themselves. Be warned, a dead " +
 		"knight knows no glory.\n\nWhen sponsored knights die their house will pay the church " +
-		"a customary funeral tithe. Wealthier houses are more generous in their offering to the gods. " +
-		"Spend it wisely.\n\nIn addition to your public duties, the church also has a hidden agenda. " +
-		"The prophets speak of a new Mesiah amongst the ranks of the great houses. They have seen " +
-		"many possible faces in the flames. Ensure at least one of the chosen knights make it to year 30.\n\n",
+		"a customary funeral tithe. Wealthier houses are more generous in their offerings to the gods. " +
+		"Spend it wisely.\n\nIn addition to your public duties, the prophets of the church also whisper " +
+		"a secret agenda in your ear. In the flames they have seen the faces of several knights rising " +
+		"to become mesiahs. The prophecy states that these would-be mesiahs are challenged only by a " +
+		"group of heretical knights. Ensure that at least one of the %s outlives all of the %s\n\n",
+		game.ColouredText(game.BlueBackgroundCode, "mesiahs"),
+		game.ColouredText(game.RedBackgroundCode, "heretics"),
 	)
 
 	game.Game = &game.GameState{}
@@ -44,25 +48,20 @@ func main() {
 	numNewKnightsPerSeason := 2
 
 
-	var bestKnight, worstKnight, randomKnight *game.Knight
-	for _, knight := range game.Game.Knights {
-		if bestKnight == nil ||
-			(knight.Prowess + knight.House.Might > bestKnight.Prowess + bestKnight.House.Might) {
-			bestKnight = knight
-		}
+	sortedKnights := game.CopySlice(game.Game.Knights)
+	sort.Slice(sortedKnights, func(x, y int) bool {
+		knightScore1 := sortedKnights[x].House.Might + sortedKnights[x].Prowess
+		knightScore2 := sortedKnights[y].House.Might + sortedKnights[y].Prowess
+		return knightScore1 < knightScore2
+	})
 
-		if worstKnight == nil ||
-			(knight.Prowess < worstKnight.Prowess) ||
-			(knight.Prowess + knight.House.Might < worstKnight.House.Might + worstKnight.House.Might) {
-			worstKnight = knight
-		}
-	}
-	possibleKnights := game.RemoveItem(game.RemoveItem(game.Game.Knights, bestKnight), worstKnight)
-	randomKnight = game.RandomSelect(possibleKnights)
+	sortedKnights[0].ChurchObjective = game.Protect
+	sortedKnights[1].ChurchObjective = game.Protect
+	sortedKnights[2].ChurchObjective = game.Protect
 
-	bestKnight.IsChosen = true
-	worstKnight.IsChosen = true
-	randomKnight.IsChosen = true
+	sortedKnights[len(sortedKnights) - 1].ChurchObjective = game.Kill
+	sortedKnights[len(sortedKnights) - 2].ChurchObjective = game.Kill
+	sortedKnights[len(sortedKnights) - 3].ChurchObjective = game.Kill
 
 	for {
 		game.Game.Cycle++
@@ -100,23 +99,25 @@ func main() {
 			knightedHouseIdx = (knightedHouseIdx + 1) % len(game.Game.Houses)
 		}
 
-		remainingChosen := 0
+		numProtectedKnights := 0
+		numKillKnights := 0
 		for _, knight := range game.Game.Knights {
-			if knight.IsChosen {
-				remainingChosen++
+			if knight.ChurchObjective == game.Protect {
+				numProtectedKnights++
+			} else if knight.ChurchObjective == game.Kill {
+				numKillKnights++
 			}
 		}
-		if remainingChosen == 0 {
+		if numProtectedKnights == 0 {
 			fmt.Printf(
 				"All possible Mesiahs have died or been stripped of their nobility. You are cast " +
 				"out from the church.\n",
 			)
 			break
 		}
-
-		if game.Game.Cycle == 30 {
+		if numKillKnights == 0 {
 			fmt.Printf(
-				"You protected the mesiah(s)!!! %d STAR VICTORY!!!\n", remainingChosen,
+				"You protected the mesiah(s)!!! %d STAR VICTORY!!!\n", numProtectedKnights,
 			)
 			break
 		}

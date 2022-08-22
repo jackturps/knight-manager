@@ -85,6 +85,7 @@ var GreenTextCode =      "\x1b[0032m"
 var YellowTextCode =     "\x1b[0033m"
 var RedTextCode =        "\x1b[0031m"
 var BlueBackgroundCode = "\x1b[0044m"
+var RedBackgroundCode =  "\x1b[0041m"
 var DefaultColourCode =  "\x1b[0000m"
 
 func ColouredText(colourCode string, text string) string {

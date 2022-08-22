@@ -188,6 +188,7 @@ func DoPlayerTurn() {
 			fmt.Printf(
 				"sponsor <knight-name>: pay a knight's cost in coin to sponsor them, gaining glory from their victories and coin when they die.\n" +
 					"marry <knight-name> <knight-name>: marry two knights, moving a knight from the weaker house into the stronger house. This reduces tension between the houses.\n" +
+					"bless <knight-name>: Pay glory to give the knight +1d to their prowess in combat. Blessings can stack for an increased cost.\n" +
 					"research <knight-name|house-name>: discover information about a knight or house.\n" +
 					"houses: display information about all houses.\n" +
 					"wars: display information about all in progress wars.\n" +
